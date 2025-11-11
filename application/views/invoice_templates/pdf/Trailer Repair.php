@@ -172,7 +172,22 @@ if ($payment_method) {
     </div>
 
     <h1 class="invoice-title <?php echo $text_class ?>"><?php _trans('invoice') ?> <?php _htmlsc($invoice->invoice_number) ?></h1>
-
+    
+    <table class="item-table">
+        <thead>
+        <tr>
+            <th><?php _trans('Trailer Number'); ?></th>
+            <th><?php _trans('PO Number'); ?></th>
+        </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><?php echo $custom_fields['invoice']['Trailer Number'] ?></td>
+                <td><?php echo $custom_fields['invoice']['PO Number'] ?></td>
+            </tr>
+        </tbody>
+    </table>
+    
     <table class="item-table">
         <thead>
         <tr>
