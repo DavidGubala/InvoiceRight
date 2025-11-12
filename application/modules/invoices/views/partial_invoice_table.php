@@ -3,11 +3,9 @@
 
         <thead>
         <tr>
-<?php if (get_setting('billcom_enabled') == '1') { ?>
             <th class="text-center" style="width: 30px;">
                 <input type="checkbox" id="select-all-invoices">
             </th>
-<?php } ?>
             <th><?php _trans('status'); ?></th>
             <th><?php _trans('invoice'); ?></th>
             <th><?php _trans('created'); ?></th>
@@ -33,11 +31,9 @@ foreach ($invoices as $invoice) {
     $dropup = $invoice_idx > $invoice_list_split;
 ?>
             <tr>
-<?php if (get_setting('billcom_enabled') == '1') { ?>
                 <td class="text-center">
                     <input type="checkbox" class="invoice-select" value="<?php echo $invoice->invoice_id; ?>">
                 </td>
-<?php } ?>
                 <td>
                     <span class="label <?php echo $invoice_statuses[$invoice->invoice_status_id]['class']; ?>">
                         <?php echo $invoice_statuses[$invoice->invoice_status_id]['label'];

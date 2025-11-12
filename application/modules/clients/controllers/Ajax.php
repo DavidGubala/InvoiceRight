@@ -240,12 +240,10 @@ class Ajax extends Admin_Controller
             
             $html .= '<tr>';
             
-            // Bill.com checkbox column
-            if ($billcom_enabled) {
-                $html .= '<td class="text-center">';
-                $html .= '<input type="checkbox" class="invoice-select" value="' . $invoice->invoice_id . '">';
-                $html .= '</td>';
-            }
+            // Checkbox column (always visible for batch operations)
+            $html .= '<td class="text-center">';
+            $html .= '<input type="checkbox" class="invoice-select" value="' . $invoice->invoice_id . '">';
+            $html .= '</td>';
             
             // Status column
             $html .= '<td>';

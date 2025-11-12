@@ -585,6 +585,9 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
                         <?php _trans('overdue'); ?>
                     </button>
                 </div>
+                <button type="button" class="btn btn-sm btn-info pull-right" id="btn-batch-download-pdf-client" style="display:none; margin-right: 10px;">
+                    <i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?>
+                </button>
 <?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
                 <button type="button" class="btn btn-sm btn-success pull-right" id="btn-batch-send-billcom-client" style="display:none; margin-right: 10px;">
                     <i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?>
@@ -646,8 +649,11 @@ $(document).ready(function() {
         if (checked > 0) {
             $('#btn-batch-send-billcom-client').show();
             $('#btn-batch-send-billcom-client').html('<i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?> (' + checked + ')');
+            $('#btn-batch-download-pdf-client').show();
+            $('#btn-batch-download-pdf-client').html('<i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?> (' + checked + ')');
         } else {
             $('#btn-batch-send-billcom-client').hide();
+            $('#btn-batch-download-pdf-client').hide();
         }
     }
 
@@ -701,6 +707,55 @@ $(document).ready(function() {
 
         $('body').append(form);
         form.submit();
+    });
+
+    // Handle batch PDF download button click for client tab
+    $('#btn-batch-download-pdf-client').on('click', function() {
+        var selectedIds = [];
+        $('.invoice-select:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+
+        if (selectedIds.length === 0) {
+            alert('<?php _trans('no_invoices_selected'); ?>');
+            return;
+        }
+
+        // Show loading indicator
+        $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> <?php _trans('generating_pdfs'); ?>...');
+        
+        var $button = $(this);
+
+        // Create a form and submit
+        var form = $('<form>', {
+            'method': 'POST',
+            'action': '<?php echo site_url('invoices/batch_download_pdf'); ?>'
+        });
+
+        // Add CSRF token
+        form.append($('<input>', {
+            'type': 'hidden',
+            'name': '<?php echo $this->security->get_csrf_token_name(); ?>',
+            'value': '<?php echo $this->security->get_csrf_hash(); ?>'
+        }));
+
+        // Add invoice IDs
+        $.each(selectedIds, function(index, value) {
+            form.append($('<input>', {
+                'type': 'hidden',
+                'name': 'invoice_ids[]',
+                'value': value
+            }));
+        });
+
+        $('body').append(form);
+        form.submit();
+        
+        // Re-enable button after a delay (file download doesn't reload page)
+        setTimeout(function() {
+            $button.prop('disabled', false);
+            toggleClientBatchButton();
+        }, 2000);
     });
 });
 </script>

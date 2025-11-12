@@ -7,6 +7,9 @@
                 data-toggle="collapse" data-target="#ip-submenu-collapse">
             <i class="fa fa-bars"></i> <?php _trans('submenu'); ?>
         </button>
+        <button type="button" class="btn btn-sm btn-info" id="btn-batch-download-pdf" style="display:none;">
+            <i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?>
+        </button>
 <?php if (get_setting('billcom_enabled') == '1') { ?>
         <button type="button" class="btn btn-sm btn-success" id="btn-batch-send-billcom" style="display:none;">
             <i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?>
@@ -110,7 +113,6 @@
     </div>
 </div>
 
-<?php if (get_setting('billcom_enabled') == '1') { ?>
 <script>
 $(document).ready(function() {
     // Handle select all checkbox
@@ -128,17 +130,25 @@ $(document).ready(function() {
         toggleBatchButton();
     });
 
-    // Show/hide batch send button based on selection
+    // Show/hide batch buttons based on selection
     function toggleBatchButton() {
         var checked = $('.invoice-select:checked').length;
         if (checked > 0) {
+<?php if (get_setting('billcom_enabled') == '1') { ?>
             $('#btn-batch-send-billcom').show();
             $('#btn-batch-send-billcom').text('<?php _trans('billcom_send_batch'); ?> (' + checked + ')');
+<?php } ?>
+            $('#btn-batch-download-pdf').show();
+            $('#btn-batch-download-pdf').html('<i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?> (' + checked + ')');
         } else {
+<?php if (get_setting('billcom_enabled') == '1') { ?>
             $('#btn-batch-send-billcom').hide();
+<?php } ?>
+            $('#btn-batch-download-pdf').hide();
         }
     }
 
+<?php if (get_setting('billcom_enabled') == '1') { ?>
     // Handle batch send button click
     $('#btn-batch-send-billcom').on('click', function() {
         var selectedIds = [];
@@ -183,6 +193,55 @@ $(document).ready(function() {
         $('body').append(form);
         form.submit();
     });
+<?php } ?>
+
+    // Handle batch PDF download button click
+    $('#btn-batch-download-pdf').on('click', function() {
+        var selectedIds = [];
+        $('.invoice-select:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+
+        if (selectedIds.length === 0) {
+            alert('<?php _trans('no_invoices_selected'); ?>');
+            return;
+        }
+
+        // Show loading indicator
+        $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> <?php _trans('generating_pdfs'); ?>...');
+        
+        var $button = $(this);
+
+        // Create a form and submit
+        var form = $('<form>', {
+            'method': 'POST',
+            'action': '<?php echo site_url('invoices/batch_download_pdf'); ?>'
+        });
+
+        // Add CSRF token
+        form.append($('<input>', {
+            'type': 'hidden',
+            'name': '<?php echo $this->security->get_csrf_token_name(); ?>',
+            'value': '<?php echo $this->security->get_csrf_hash(); ?>'
+        }));
+
+        // Add invoice IDs
+        $.each(selectedIds, function(index, value) {
+            form.append($('<input>', {
+                'type': 'hidden',
+                'name': 'invoice_ids[]',
+                'value': value
+            }));
+        });
+
+        $('body').append(form);
+        form.submit();
+        
+        // Re-enable button after a delay (file download doesn't reload page)
+        setTimeout(function() {
+            $button.prop('disabled', false);
+            toggleBatchButton();
+        }, 2000);
+    });
 });
 </script>
-<?php } ?>

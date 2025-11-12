@@ -563,4 +563,142 @@ class Invoices extends Admin_Controller
             redirect('invoices/status/all');
         }
     }
+
+    /**
+     * Batch download PDFs for multiple invoices
+     */
+    public function batch_download_pdf(): void
+    {
+        // Get invoice IDs from POST
+        $invoice_ids = $this->input->post('invoice_ids');
+        if (empty($invoice_ids) || !is_array($invoice_ids)) {
+            log_message('warning', 'Batch PDF download failed: no invoices selected');
+            $this->session->set_flashdata('alert_error', trans('no_invoices_selected'));
+            redirect('invoices/index');
+            return;
+        }
+
+        log_message('info', 'User initiated batch PDF download for ' . count($invoice_ids) . ' invoice(s)');
+
+        $this->load->helper('pdf');
+
+        // Create a temporary directory for PDFs
+        $temp_dir = FCPATH . 'uploads/temp/batch_pdf_' . uniqid();
+        if (!is_dir($temp_dir)) {
+            mkdir($temp_dir, 0755, true);
+        }
+
+        $pdf_files = [];
+        $success_count = 0;
+        $error_count = 0;
+
+        foreach ($invoice_ids as $invoice_id) {
+            // Get invoice data
+            $invoice = $this->mdl_invoices->get_by_id($invoice_id);
+            if (!$invoice) {
+                $error_count++;
+                log_message('warning', 'Batch PDF: Invoice #' . $invoice_id . ' not found');
+                continue;
+            }
+
+            try {
+                // Check if we should mark invoice as sent when PDF is generated
+                if (get_setting('mark_invoices_sent_pdf') == 1) {
+                    $this->mdl_invoices->generate_invoice_number_if_applicable($invoice_id);
+                    $this->mdl_invoices->mark_sent($invoice_id);
+                }
+
+                // Generate PDF filename
+                $invoice_number = $invoice->invoice_number ? $invoice->invoice_number : 'INV-' . $invoice_id;
+                // Sanitize filename
+                $invoice_number = preg_replace('/[^A-Za-z0-9\-_]/', '_', $invoice_number);
+                $filename = 'Invoice_' . $invoice_number . '.pdf';
+                $dest_filepath = $temp_dir . '/' . $filename;
+
+                // Generate the PDF using the standard helper (returns file path, not content)
+                $source_pdf_path = generate_invoice_pdf($invoice_id, false, null, null);
+                
+                if (!file_exists($source_pdf_path)) {
+                    throw new Exception('Generated PDF file not found: ' . $source_pdf_path);
+                }
+
+                // Copy the generated PDF to our temp directory with the sanitized filename
+                if (!copy($source_pdf_path, $dest_filepath)) {
+                    throw new Exception('Failed to copy PDF from ' . $source_pdf_path . ' to ' . $dest_filepath);
+                }
+
+                $pdf_files[] = $dest_filepath;
+                $success_count++;
+                log_message('debug', 'Generated PDF for invoice #' . $invoice_id . ': ' . $filename);
+            } catch (Exception $e) {
+                $error_count++;
+                log_message('error', 'Failed to generate PDF for invoice #' . $invoice_id . ': ' . $e->getMessage());
+            }
+        }
+
+        // If no PDFs were generated successfully
+        if (empty($pdf_files)) {
+            log_message('error', 'Batch PDF download failed: no PDFs could be generated');
+            $this->session->set_flashdata('alert_error', trans('error_generating_pdf'));
+            // Clean up temp directory
+            if (is_dir($temp_dir)) {
+                rmdir($temp_dir);
+            }
+            redirect('invoices/index');
+            return;
+        }
+
+        // Create ZIP file
+        $zip_filename = 'Invoices_' . date('Y-m-d_His') . '.zip';
+        $zip_filepath = $temp_dir . '/' . $zip_filename;
+
+        $zip = new ZipArchive();
+        if ($zip->open($zip_filepath, ZipArchive::CREATE) !== true) {
+            log_message('error', 'Batch PDF download failed: could not create ZIP file');
+            $this->session->set_flashdata('alert_error', trans('error_generating_pdf'));
+            // Clean up temp files
+            foreach ($pdf_files as $pdf_file) {
+                if (file_exists($pdf_file)) {
+                    unlink($pdf_file);
+                }
+            }
+            if (is_dir($temp_dir)) {
+                rmdir($temp_dir);
+            }
+            redirect('invoices/index');
+            return;
+        }
+
+        // Add all PDF files to the ZIP
+        foreach ($pdf_files as $pdf_file) {
+            $zip->addFile($pdf_file, basename($pdf_file));
+        }
+
+        $zip->close();
+
+        log_message('info', 'Batch PDF download complete: ' . $success_count . ' PDFs generated' . ($error_count > 0 ? ', ' . $error_count . ' failed' : ''));
+
+        // Send ZIP file for download
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . $zip_filename . '"');
+        header('Content-Length: ' . filesize($zip_filepath));
+        header('Pragma: no-cache');
+        header('Expires: 0');
+        readfile($zip_filepath);
+
+        // Clean up temp files and directory
+        foreach ($pdf_files as $pdf_file) {
+            if (file_exists($pdf_file)) {
+                unlink($pdf_file);
+            }
+        }
+        if (file_exists($zip_filepath)) {
+            unlink($zip_filepath);
+        }
+        if (is_dir($temp_dir)) {
+            rmdir($temp_dir);
+        }
+
+        exit; // Important: prevent any further output
+    }
 }
