@@ -571,11 +571,28 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
                     </button>
                 </div>
 <?php } ?>
+<?php if ($what != 'invoice') { ?>
                 <div class="pull-right" style="margin:.5rem 0 -1.5rem 0">
                     <?php echo pager(site_url('clients/view/' . $client->client_id . '/' . $what . 's'), 'mdl_' . $what . 's'); ?>
                 </div>
+<?php } ?>
             </div>
             <?php echo ${$table}; ?>
+<?php if ($what == 'invoice') { ?>
+            <div id="invoice-load-more" class="text-center" style="padding: 20px;">
+                <button type="button" class="btn btn-default" id="btn-load-more-invoices">
+                    <i class="fa fa-chevron-down"></i> <?php _trans('load_more'); ?>
+                </button>
+            </div>
+            <div id="invoice-loading" class="text-center" style="padding: 20px; display: none;">
+                <i class="fa fa-spinner fa-spin fa-2x"></i>
+                <p><?php _trans('loading'); ?>...</p>
+            </div>
+            <div id="invoice-end" class="text-center" style="padding: 20px; display: none; color: #999;">
+                <i class="fa fa-check"></i>
+                <p><?php _trans('no_more_invoices'); ?></p>
+            </div>
+<?php } ?>
         </div>
 <?php
 }
@@ -666,3 +683,130 @@ $(document).ready(function() {
 });
 </script>
 <?php } ?>
+
+<script>
+// Infinite scroll for client invoices
+$(document).ready(function() {
+    var clientId = <?php echo $client->client_id; ?>;
+    var invoiceOffset = 20; // Initial load was 20
+    var invoiceLimit = 20;
+    var isLoading = false;
+    var hasMore = true;
+    
+    // Only enable infinite scroll on the invoices tab
+    function initInfiniteScroll() {
+        if (!$('#client-invoices').hasClass('active')) {
+            return;
+        }
+        
+        // Detect scroll on both window and the tab container
+        $(window).on('scroll.invoiceScroll', checkScrollPosition);
+        $('#client-invoices').on('scroll.invoiceScroll', checkScrollPosition);
+        
+        // Also check on window resize (in case content changes)
+        $(window).on('resize.invoiceScroll', checkScrollPosition);
+    }
+    
+    function checkScrollPosition() {
+        // Check if we're in the invoices tab
+        if (!$('#client-invoices').hasClass('active') || !hasMore || isLoading) {
+            return;
+        }
+        
+        // Get the invoice table
+        var $invoiceTable = $('#client-invoices table');
+        if ($invoiceTable.length === 0) {
+            return;
+        }
+        
+        // Calculate if we're near the bottom
+        var tableBottom = $invoiceTable.offset().top + $invoiceTable.height();
+        var viewportBottom = $(window).scrollTop() + $(window).height();
+        
+        // Trigger when table bottom is within 500px of viewport bottom
+        if (viewportBottom >= tableBottom - 500) {
+            loadMoreInvoices();
+        }
+    }
+    
+    function loadMoreInvoices() {
+        if (isLoading || !hasMore) {
+            return;
+        }
+        
+        isLoading = true;
+        $('#invoice-loading').show();
+        $('#invoice-load-more').hide();
+        $('#invoice-end').hide();
+        
+        $.ajax({
+            url: '<?php echo site_url('clients/ajax/load_more_invoices'); ?>',
+            type: 'POST',
+            data: {
+                client_id: clientId,
+                offset: invoiceOffset,
+                limit: invoiceLimit,
+                <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.success && response.html) {
+                    // Append new rows to the invoice table
+                    $('#client-invoices table tbody').append(response.html);
+                    
+                    // Update offset for next load
+                    invoiceOffset += response.count;
+                    
+                    // Check if there are more records
+                    hasMore = response.has_more;
+                    
+                    if (!hasMore) {
+                        $('#invoice-end').show();
+                        $('#invoice-load-more').hide();
+                    } else {
+                        $('#invoice-load-more').show();
+                    }
+                    
+                    // Re-initialize batch send checkboxes if Bill.com is enabled
+                    if (typeof toggleClientBatchButton === 'function') {
+                        $('.invoice-select').off('change').on('change', function() {
+                            var total = $('.invoice-select').length;
+                            var checked = $('.invoice-select:checked').length;
+                            $('#select-all-invoices').prop('checked', total === checked);
+                            toggleClientBatchButton();
+                        });
+                    }
+                } else {
+                    hasMore = false;
+                    $('#invoice-end').show();
+                    $('#invoice-load-more').hide();
+                }
+            },
+            error: function() {
+                console.error('Failed to load more invoices');
+                hasMore = false;
+                $('#invoice-load-more').hide();
+            },
+            complete: function() {
+                isLoading = false;
+                $('#invoice-loading').hide();
+            }
+        });
+    }
+    
+    // Handle "Load More" button click
+    $('#btn-load-more-invoices').on('click', function() {
+        loadMoreInvoices();
+    });
+    
+    // Initialize when the invoices tab is clicked
+    $('a[href="#client-invoices"]').on('shown.bs.tab', function() {
+        initInfiniteScroll();
+    });
+    
+    // Initialize immediately if on invoices tab
+    if ($('#client-invoices').hasClass('active')) {
+        initInfiniteScroll();
+    }
+});
+</script>

@@ -852,4 +852,7 @@ $lang = [
     'to'                           => 'to',
     'and'                          => 'and',
     'more'                         => 'more',
+    'loading'                      => 'Loading',
+    'load_more'                    => 'Load More',
+    'no_more_invoices'             => 'No more invoices to load',
 ];

@@ -163,4 +163,118 @@ class Ajax extends Admin_Controller
 
         $this->layout->load_view('clients/partial_notes', $data);
     }
+
+    /**
+     * Load more invoices for infinite scroll in client view
+     */
+    public function load_more_invoices()
+    {
+        $client_id = $this->input->post('client_id');
+        $offset = (int)$this->input->post('offset');
+        $limit = (int)$this->input->post('limit') ?: 20;
+
+        if (empty($client_id)) {
+            echo json_encode(['success' => false, 'error' => 'Client ID required']);
+            return;
+        }
+
+        $this->load->model('invoices/mdl_invoices');
+        $this->load->helper('date');
+        
+        // Get invoices with offset and limit
+        $invoices = $this->mdl_invoices
+            ->by_client($client_id)
+            ->limit($limit, $offset)
+            ->get()
+            ->result();
+
+        // Get invoice statuses for rendering
+        $invoice_statuses = $this->mdl_invoices->statuses();
+        
+        // Render the invoice rows HTML
+        $html = '';
+        $invoice_count = count($invoices);
+        
+        foreach ($invoices as $idx => $invoice) {
+            // Disable read-only if not applicable
+            if ($this->config->item('disable_read_only') == true) {
+                $invoice->is_read_only = 0;
+            }
+            
+            $billcom_enabled = get_setting('billcom_enabled') == '1';
+            $status_label = $invoice_statuses[$invoice->invoice_status_id]['label'];
+            $status_class = $invoice_statuses[$invoice->invoice_status_id]['class'];
+            
+            $html .= '<tr>';
+            
+            // Bill.com checkbox column
+            if ($billcom_enabled) {
+                $html .= '<td class="text-center">';
+                $html .= '<input type="checkbox" class="invoice-select" value="' . $invoice->invoice_id . '">';
+                $html .= '</td>';
+            }
+            
+            // Status column
+            $html .= '<td>';
+            $html .= '<span class="label ' . $status_class . '">';
+            $html .= $status_label;
+            if ($invoice->invoice_sign == '-1') {
+                $html .= '&nbsp;<i class="fa fa-credit-invoice" title="' . trans('credit_invoice') . '"></i>';
+            }
+            if ($invoice->is_read_only) {
+                $html .= '&nbsp;<i class="fa fa-read-only" title="' . trans('read_only') . '"></i>';
+            }
+            if ($invoice->invoice_is_recurring) {
+                $html .= '&nbsp;<i class="fa fa-refresh" title="' . trans('recurring') . '"></i>';
+            }
+            $html .= '</span></td>';
+            
+            // Invoice number
+            $html .= '<td>';
+            $html .= '<a href="' . site_url('invoices/view/' . $invoice->invoice_id) . '" title="' . trans('edit') . '">';
+            $html .= htmlspecialchars($invoice->invoice_number ? $invoice->invoice_number : $invoice->invoice_id);
+            $html .= '</a></td>';
+            
+            // Date created
+            $html .= '<td>' . date_from_mysql($invoice->invoice_date_created) . '</td>';
+            
+            // Due date
+            $html .= '<td>';
+            $html .= '<span class="' . ($invoice->is_overdue ? 'font-overdue' : '') . '">';
+            $html .= date_from_mysql($invoice->invoice_date_due);
+            $html .= '</span></td>';
+            
+            // Client name
+            $html .= '<td>';
+            $html .= '<a href="' . site_url('clients/view/' . $invoice->client_id) . '" title="' . trans('view_client') . '">';
+            $html .= htmlspecialchars(format_client($invoice));
+            $html .= '</a></td>';
+            
+            // Amount
+            $html .= '<td class="amount ' . ($invoice->invoice_sign == '-1' ? 'text-danger' : '') . '">';
+            $html .= format_currency($invoice->invoice_total);
+            $html .= '</td>';
+            
+            // Balance
+            $html .= '<td class="amount last">';
+            $html .= format_currency($invoice->invoice_balance);
+            $html .= '</td>';
+            
+            // Options column - simplified for loaded rows
+            $html .= '<td>';
+            $html .= '<a href="' . site_url('invoices/view/' . $invoice->invoice_id) . '" class="btn btn-default btn-sm">';
+            $html .= '<i class="fa fa-edit"></i> ' . trans('edit');
+            $html .= '</a>';
+            $html .= '</td>';
+            
+            $html .= '</tr>';
+        }
+
+        echo json_encode([
+            'success' => true,
+            'html' => $html,
+            'count' => $invoice_count,
+            'has_more' => $invoice_count === $limit
+        ]);
+    }
 }

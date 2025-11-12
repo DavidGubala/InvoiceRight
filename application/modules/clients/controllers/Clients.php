@@ -277,7 +277,8 @@ class Clients extends Admin_Controller
         }
 
         $base_url = site_url('clients/view/' . $client_id);
-        $this->mdl_invoices->by_client($client_id)->paginate($base_url . '/invoices', $p['invoices'], 5);
+        // Load more initial invoices for infinite scroll (20 instead of 5)
+        $this->mdl_invoices->by_client($client_id)->paginate($base_url . '/invoices', 0, 20);
         $this->mdl_quotes->by_client($client_id)->paginate($base_url . '/quotes', $p['quotes'], 5);
         $this->mdl_payments->by_client($client_id)->paginate($base_url . '/payments', $p['payments'], 5);
 
