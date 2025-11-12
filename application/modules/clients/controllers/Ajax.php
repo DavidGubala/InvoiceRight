@@ -172,6 +172,7 @@ class Ajax extends Admin_Controller
         $client_id = $this->input->post('client_id');
         $offset = (int)$this->input->post('offset');
         $limit = (int)$this->input->post('limit') ?: 20;
+        $status = $this->input->post('status') ?: 'all';
 
         if (empty($client_id)) {
             echo json_encode(['success' => false, 'error' => 'Client ID required']);
@@ -181,9 +182,30 @@ class Ajax extends Admin_Controller
         $this->load->model('invoices/mdl_invoices');
         $this->load->helper('date');
         
+        // Apply status filter
+        $this->mdl_invoices->by_client($client_id);
+        
+        switch ($status) {
+            case 'draft':
+                $this->mdl_invoices->is_draft();
+                break;
+            case 'sent':
+                $this->mdl_invoices->is_sent();
+                break;
+            case 'viewed':
+                $this->mdl_invoices->is_viewed();
+                break;
+            case 'paid':
+                $this->mdl_invoices->is_paid();
+                break;
+            case 'overdue':
+                $this->mdl_invoices->is_overdue();
+                break;
+            // 'all' - no additional filter
+        }
+        
         // Get invoices with offset and limit
         $invoices = $this->mdl_invoices
-            ->by_client($client_id)
             ->limit($limit, $offset)
             ->get()
             ->result();

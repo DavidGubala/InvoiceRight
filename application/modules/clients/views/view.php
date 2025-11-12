@@ -563,20 +563,42 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
     $table = $what . '_table'; // dynamic var name
 ?>
         <div id="client-<?php echo $what; ?>s" class="tab-pane table-content<?php echo $activeTab == $what . 's' ? ' active' : ''; ?>">
-            <div class="container-fluid">
-<?php if ($what == 'invoice' && get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
-                <div class="pull-left" style="margin:.5rem 0 -1.5rem 0">
-                    <button type="button" class="btn btn-sm btn-success" id="btn-batch-send-billcom-client" style="display:none;">
-                        <i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?>
+<?php if ($what == 'invoice') { ?>
+            <div class="container-fluid" style="margin-bottom: 15px;">
+                <div class="btn-group btn-group-sm index-options pull-right">
+                    <button type="button" class="btn btn-primary invoice-status-filter" data-status="all">
+                        <?php _trans('all'); ?>
+                    </button>
+                    <button type="button" class="btn btn-default invoice-status-filter" data-status="draft">
+                        <?php _trans('draft'); ?>
+                    </button>
+                    <button type="button" class="btn btn-default invoice-status-filter" data-status="sent">
+                        <?php _trans('sent'); ?>
+                    </button>
+                    <button type="button" class="btn btn-default invoice-status-filter" data-status="viewed">
+                        <?php _trans('viewed'); ?>
+                    </button>
+                    <button type="button" class="btn btn-default invoice-status-filter" data-status="paid">
+                        <?php _trans('paid'); ?>
+                    </button>
+                    <button type="button" class="btn btn-default invoice-status-filter" data-status="overdue">
+                        <?php _trans('overdue'); ?>
                     </button>
                 </div>
+<?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
+                <button type="button" class="btn btn-sm btn-success pull-right" id="btn-batch-send-billcom-client" style="display:none; margin-right: 10px;">
+                    <i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?>
+                </button>
 <?php } ?>
-<?php if ($what != 'invoice') { ?>
+            </div>
+            <div style="clear: both;"></div>
+<?php } else { ?>
+            <div class="container-fluid">
                 <div class="pull-right" style="margin:.5rem 0 -1.5rem 0">
                     <?php echo pager(site_url('clients/view/' . $client->client_id . '/' . $what . 's'), 'mdl_' . $what . 's'); ?>
                 </div>
-<?php } ?>
             </div>
+<?php } ?>
             <?php echo ${$table}; ?>
 <?php if ($what == 'invoice') { ?>
             <div id="invoice-load-more" class="text-center" style="padding: 20px;">
@@ -692,6 +714,7 @@ $(document).ready(function() {
     var invoiceLimit = 20;
     var isLoading = false;
     var hasMore = true;
+    var currentStatus = 'all';
     
     // Only enable infinite scroll on the invoices tab
     function initInfiniteScroll() {
@@ -746,6 +769,7 @@ $(document).ready(function() {
                 client_id: clientId,
                 offset: invoiceOffset,
                 limit: invoiceLimit,
+                status: currentStatus,
                 <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
             },
             dataType: 'json',
@@ -793,6 +817,37 @@ $(document).ready(function() {
             }
         });
     }
+    
+    // Handle status filter button clicks
+    $('.invoice-status-filter').on('click', function() {
+        var newStatus = $(this).data('status');
+        
+        if (newStatus === currentStatus) {
+            return; // Already on this filter
+        }
+        
+        // Update button states (match main invoice list styling)
+        $('.invoice-status-filter').removeClass('btn-primary').addClass('btn-default');
+        $(this).removeClass('btn-default').addClass('btn-primary');
+        
+        // Update current status
+        currentStatus = newStatus;
+        
+        // Reset pagination
+        invoiceOffset = 0;
+        hasMore = true;
+        
+        // Clear current invoices
+        $('#client-invoices table tbody').empty();
+        
+        // Show loading
+        $('#invoice-loading').show();
+        $('#invoice-load-more').hide();
+        $('#invoice-end').hide();
+        
+        // Load filtered invoices
+        loadMoreInvoices();
+    });
     
     // Handle "Load More" button click
     $('#btn-load-more-invoices').on('click', function() {
