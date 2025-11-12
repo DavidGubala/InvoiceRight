@@ -564,6 +564,8 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
 ?>
         <div id="client-<?php echo $what; ?>s" class="tab-pane table-content<?php echo $activeTab == $what . 's' ? ' active' : ''; ?>">
 <?php if ($what == 'invoice') { ?>
+            <?php $this->layout->load_view('layout/alerts'); ?>
+            
             <div class="container-fluid" style="margin-bottom: 15px;">
                 <div class="btn-group btn-group-sm index-options pull-right">
                     <button type="button" class="btn btn-primary invoice-status-filter" data-status="all">
@@ -686,11 +688,11 @@ $(document).ready(function() {
             'action': '<?php echo site_url('invoices/batch_send_to_billcom'); ?>'
         });
 
-        // Add CSRF token
+        // Add CSRF token (get fresh token from cookie to handle regenerated tokens)
         form.append($('<input>', {
             'type': 'hidden',
-            'name': '<?php echo $this->security->get_csrf_token_name(); ?>',
-            'value': '<?php echo $this->security->get_csrf_hash(); ?>'
+            'name': csrf_token_name,
+            'value': Cookies.get(csrf_cookie_name)
         }));
 
         // Add redirect URL to return to client view
@@ -737,11 +739,11 @@ $(document).ready(function() {
             'action': '<?php echo site_url('invoices/batch_download_pdf'); ?>'
         });
 
-        // Add CSRF token
+        // Add CSRF token (get fresh token from cookie to handle regenerated tokens)
         form.append($('<input>', {
             'type': 'hidden',
-            'name': '<?php echo $this->security->get_csrf_token_name(); ?>',
-            'value': '<?php echo $this->security->get_csrf_hash(); ?>'
+            'name': csrf_token_name,
+            'value': Cookies.get(csrf_cookie_name)
         }));
 
         // Add invoice IDs
@@ -848,16 +850,6 @@ $(document).ready(function() {
                         $('#invoice-load-more').hide();
                     } else {
                         $('#invoice-load-more').show();
-                    }
-                    
-                    // Re-initialize checkbox handlers for dynamically loaded invoices
-                    if (typeof toggleClientBatchButton === 'function') {
-                        $('.invoice-select').off('change').on('change', function() {
-                            var total = $('.invoice-select').length;
-                            var checked = $('.invoice-select:checked').length;
-                            $('#select-all-invoices').prop('checked', total === checked);
-                            toggleClientBatchButton();
-                        });
                     }
                 } else {
                     hasMore = false;

@@ -174,11 +174,11 @@ $(document).ready(function() {
             'action': '<?php echo site_url('invoices/batch_send_to_billcom'); ?>'
         });
 
-        // Add CSRF token
+        // Add CSRF token (get fresh token from cookie to handle regenerated tokens)
         form.append($('<input>', {
             'type': 'hidden',
-            'name': '<?php echo $this->security->get_csrf_token_name(); ?>',
-            'value': '<?php echo $this->security->get_csrf_hash(); ?>'
+            'name': csrf_token_name,
+            'value': Cookies.get(csrf_cookie_name)
         }));
 
         // Add invoice IDs
@@ -218,11 +218,11 @@ $(document).ready(function() {
             'action': '<?php echo site_url('invoices/batch_download_pdf'); ?>'
         });
 
-        // Add CSRF token
+        // Add CSRF token (get fresh token from cookie to handle regenerated tokens)
         form.append($('<input>', {
             'type': 'hidden',
-            'name': '<?php echo $this->security->get_csrf_token_name(); ?>',
-            'value': '<?php echo $this->security->get_csrf_hash(); ?>'
+            'name': csrf_token_name,
+            'value': Cookies.get(csrf_cookie_name)
         }));
 
         // Add invoice IDs

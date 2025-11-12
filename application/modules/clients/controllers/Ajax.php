@@ -267,12 +267,12 @@ class Ajax extends Admin_Controller
             $html .= '</a></td>';
             
             // Date created
-            $html .= '<td>' . date_from_mysql($invoice->invoice_date_created) . '</td>';
+            $html .= '<td>' . date_from_mysql($invoice->invoice_date_created, true) . '</td>';
             
             // Due date
             $html .= '<td>';
             $html .= '<span class="' . ($invoice->is_overdue ? 'font-overdue' : '') . '">';
-            $html .= date_from_mysql($invoice->invoice_date_due);
+            $html .= date_from_mysql($invoice->invoice_date_due, true);
             $html .= '</span></td>';
             
             // Client name

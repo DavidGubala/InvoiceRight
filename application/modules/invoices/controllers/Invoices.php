@@ -426,6 +426,10 @@ class Invoices extends Admin_Controller
         $result = $this->billcom->createInvoice($invoice, $client, $items, $custom_fields);
 
         if ($result['success']) {
+            // Generate invoice number if needed and mark as sent
+            $this->mdl_invoices->generate_invoice_number_if_applicable($invoice_id);
+            $this->mdl_invoices->mark_sent($invoice_id);
+            
             // Update invoice with Bill.com ID
             $this->mdl_invoices->mark_sent_to_billcom($invoice_id, $result['data']['id']);
             log_message('info', 'Successfully submitted invoice ' . $invoice_id . ' to Bill.com (ID: ' . $result['data']['id'] . ')');
@@ -521,6 +525,10 @@ class Invoices extends Admin_Controller
             $result = $this->billcom->createInvoice($invoice, $client, $items, $custom_fields);
 
             if ($result['success']) {
+                // Generate invoice number if needed and mark as sent
+                $this->mdl_invoices->generate_invoice_number_if_applicable($invoice_id);
+                $this->mdl_invoices->mark_sent($invoice_id);
+                
                 // Update invoice with Bill.com ID
                 $this->mdl_invoices->mark_sent_to_billcom($invoice_id, $result['data']['id']);
                 $success_count++;
