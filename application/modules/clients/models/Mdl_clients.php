@@ -53,6 +53,12 @@ class Mdl_Clients extends Response_Model
             'client_active' => [
                 'field' => 'client_active',
             ],
+            'client_billcom_enabled' => [
+                'field' => 'client_billcom_enabled',
+            ],
+            'client_billcom_customer_id' => [
+                'field' => 'client_billcom_customer_id',
+            ],
             'client_language' => [
                 'field' => 'client_language',
                 'label' => trans('language'),
@@ -185,6 +191,11 @@ class Mdl_Clients extends Response_Model
 
         if ( ! isset($db_array['client_active'])) {
             $db_array['client_active'] = 0;
+        }
+
+        // Bill.com integration checkbox
+        if ( ! isset($db_array['client_billcom_enabled'])) {
+            $db_array['client_billcom_enabled'] = 0;
         }
 
         return $db_array;

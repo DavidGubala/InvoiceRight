@@ -1,6 +1,9 @@
 <?php
 $client_active = $this->mdl_clients->form_value('client_active');
 $active        = ($client_active == 1 || ! is_numeric($client_active)) ? ' checked="checked"' : '';
+// Bill.com integration
+$client_billcom_enabled = $this->mdl_clients->form_value('client_billcom_enabled');
+$billcom_checked        = ($client_billcom_enabled == 1) ? ' checked="checked"' : '';
 $itsCompany    = $this->mdl_clients->form_value('client_company') || $this->mdl_clients->form_value('client_vat_id');
 if ($req_einvoicing) {
     // eInvoicing panel
@@ -57,9 +60,29 @@ $einvoicingOpt = $req_einvoicing ? $einvoicingTip . trans('optional') . ')"' : '
                                 <?php _trans('active_client'); ?>
                                 <input id="client_active" name="client_active" type="checkbox" value="1"<?php echo $active; ?>>
                             </label>
+<?php if (get_setting('billcom_enabled') == '1') { ?>
+                            &nbsp;&nbsp;
+                            <label for="client_billcom_enabled" class="control-label" data-toggle="tooltip" title="<?php _trans('billcom_client_enabled_help'); ?>">
+                                <i class="fa fa-cloud-upload"></i> <?php _trans('client_billcom_enabled'); ?>
+                                <input id="client_billcom_enabled" name="client_billcom_enabled" type="checkbox" value="1"<?php echo $billcom_checked; ?>>
+                            </label>
+<?php } ?>
                         </div>
                     </div>
                     <div class="panel-body">
+<?php if (get_setting('billcom_enabled') == '1') { ?>
+                        <div class="form-group">
+                            <label for="client_billcom_customer_id">
+                                <?php _trans('client_billcom_customer_id'); ?>
+                            </label>
+                            <input type="text" class="form-control" 
+                                name="client_billcom_customer_id" 
+                                id="client_billcom_customer_id"
+                                value="<?php echo $this->mdl_clients->form_value('client_billcom_customer_id', true); ?>"
+                                placeholder="0cu...">
+                            <small class="text-muted"><?php _trans('client_billcom_customer_id_help'); ?></small>
+                        </div>
+<?php } ?>
                         <div class="form-group">
                             <label for="client_name">
                                 <?php _trans('client_name'); ?>

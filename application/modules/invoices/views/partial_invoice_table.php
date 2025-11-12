@@ -3,6 +3,11 @@
 
         <thead>
         <tr>
+<?php if (get_setting('billcom_enabled') == '1') { ?>
+            <th class="text-center" style="width: 30px;">
+                <input type="checkbox" id="select-all-invoices">
+            </th>
+<?php } ?>
             <th><?php _trans('status'); ?></th>
             <th><?php _trans('invoice'); ?></th>
             <th><?php _trans('created'); ?></th>
@@ -28,6 +33,11 @@ foreach ($invoices as $invoice) {
     $dropup = $invoice_idx > $invoice_list_split;
 ?>
             <tr>
+<?php if (get_setting('billcom_enabled') == '1') { ?>
+                <td class="text-center">
+                    <input type="checkbox" class="invoice-select" value="<?php echo $invoice->invoice_id; ?>">
+                </td>
+<?php } ?>
                 <td>
                     <span class="label <?php echo $invoice_statuses[$invoice->invoice_status_id]['class']; ?>">
                         <?php echo $invoice_statuses[$invoice->invoice_status_id]['label'];
@@ -107,6 +117,31 @@ foreach ($invoices as $invoice) {
                                     <?php _trans('enter_payment'); ?>
                                 </a>
                             </li>
+<?php
+    // Bill.com integration option
+    if (get_setting('billcom_enabled') == '1') {
+        // Access Bill.com columns directly (already in query, no extra DB call)
+        $has_billcom_id = !empty($invoice->invoice_billcom_id);
+        // Check if client has Bill.com enabled (default to 0 if column doesn't exist yet)
+        $client_billcom_enabled = (isset($invoice->client_billcom_enabled) && $invoice->client_billcom_enabled) ? 1 : 0;
+?>
+                            <li>
+                                <a href="<?php echo site_url('invoices/send_to_billcom/' . $invoice->invoice_id); ?>"
+                                   <?php if (!$client_billcom_enabled) { ?>title="<?php _trans('billcom_client_disabled'); ?>" style="color: #999;"<?php } ?>>
+                                    <i class="fa fa-cloud-upload fa-margin"></i>
+                                    <?php _trans('billcom_send_invoice'); ?>
+<?php
+        if ($has_billcom_id) {
+            echo ' <span class="label label-success" style="font-size:9px;"><i class="fa fa-check"></i></span>';
+        } elseif (!$client_billcom_enabled) {
+            echo ' <span class="label label-default" style="font-size:9px;"><i class="fa fa-ban"></i></span>';
+        }
+?>
+                                </a>
+                            </li>
+<?php
+    }
+?>
 <?php
     if (
         $invoice->invoice_status_id == 1 ||

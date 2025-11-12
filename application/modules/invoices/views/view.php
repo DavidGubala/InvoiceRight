@@ -336,6 +336,40 @@ if ($einvoice->user) {
                         <?php _trans('send_email'); ?>
                     </a>
                 </li>
+<?php
+// Bill.com integration option
+if (get_setting('billcom_enabled') == '1') {
+    // Access Bill.com columns directly (already in query, no extra DB call)
+    $has_billcom_id = !empty($invoice->invoice_billcom_id);
+    $billcom_id = $invoice->invoice_billcom_id ?? null;
+    // Check if client has Bill.com enabled (default to 0 if column doesn't exist yet)
+    $client_billcom_enabled = (isset($invoice->client_billcom_enabled) && $invoice->client_billcom_enabled) ? 1 : 0;
+?>
+                <li>
+                    <a href="<?php echo site_url('invoices/send_to_billcom/' . $invoice_id); ?>"
+                       <?php if (!$client_billcom_enabled) { ?>title="<?php _trans('billcom_client_disabled'); ?>" style="color: #999;"<?php } ?>>
+                        <i class="fa fa-cloud-upload fa-margin"></i>
+                        <?php _trans('billcom_send_invoice'); ?>
+<?php
+    if ($has_billcom_id) {
+?>
+                        <span class="label label-success pull-right" style="margin-top: 2px;">
+                            <i class="fa fa-check"></i> <?php echo htmlsc($billcom_id); ?>
+                        </span>
+<?php
+    } elseif (!$client_billcom_enabled) {
+?>
+                        <span class="label label-default pull-right" style="margin-top: 2px;">
+                            <i class="fa fa-ban"></i> <?php _trans('disabled'); ?>
+                        </span>
+<?php
+    }
+?>
+                    </a>
+                </li>
+<?php
+}
+?>
                 <li class="divider"></li>
                 <li>
                     <a href="#" id="btn_create_recurring"

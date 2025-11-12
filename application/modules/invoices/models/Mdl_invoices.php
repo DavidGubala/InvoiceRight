@@ -669,4 +669,64 @@ class Mdl_Invoices extends Response_Model
             $this->db->update('ip_invoices');
         }
     }
+
+    /**
+     * Mark invoice as sent to Bill.com
+     *
+     * @param int $invoice_id
+     * @param string $billcom_invoice_id Bill.com invoice ID
+     * @return bool
+     */
+    public function mark_sent_to_billcom($invoice_id, $billcom_invoice_id)
+    {
+        $db_array = [
+            'invoice_billcom_id' => $billcom_invoice_id,
+            'invoice_billcom_sent_date' => date('Y-m-d H:i:s')
+        ];
+
+        $this->db->where('invoice_id', $invoice_id);
+        $this->db->update('ip_invoices', $db_array);
+
+        return $this->db->affected_rows() > 0;
+    }
+
+    /**
+     * Get Bill.com status for an invoice
+     * 
+     * @deprecated No longer needed - access invoice_billcom_id directly from invoice object
+     *             This method caused N+1 query problems when viewing invoice lists.
+     *             Use: $invoice->invoice_billcom_id instead
+     * 
+     * @param int $invoice_id
+     * @return object|null Object with billcom_id and sent_date, or null if not sent
+     */
+    public function get_billcom_status($invoice_id)
+    {
+        $this->db->select('invoice_billcom_id, invoice_billcom_sent_date');
+        $this->db->where('invoice_id', $invoice_id);
+        $result = $this->db->get('ip_invoices');
+
+        if ($result->num_rows() > 0) {
+            $row = $result->row();
+            if (!empty($row->invoice_billcom_id)) {
+                return (object)[
+                    'billcom_id' => $row->invoice_billcom_id,
+                    'sent_date' => $row->invoice_billcom_sent_date
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if invoice has been sent to Bill.com
+     *
+     * @param int $invoice_id
+     * @return bool
+     */
+    public function is_sent_to_billcom($invoice_id)
+    {
+        return $this->get_billcom_status($invoice_id) !== null;
+    }
 }

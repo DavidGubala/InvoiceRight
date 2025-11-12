@@ -62,6 +62,9 @@
         <a data-toggle="tab" href="#settings-online-payment"><?php echo lang('online_payment'); ?></a>
     </li>
     <li>
+        <a data-toggle="tab" href="#settings-billcom"><?php _trans('billcom_settings'); ?></a>
+    </li>
+    <li>
         <a data-toggle="tab" href="#settings-projects-tasks"><?php _trans('projects'); ?></a>
     </li>
     <li>
@@ -103,6 +106,10 @@
 
             <div id="settings-online-payment" class="tab-pane">
                 <?php $this->layout->load_view('settings/partial_settings_online_payment'); ?>
+            </div>
+
+            <div id="settings-billcom" class="tab-pane">
+                <?php $this->layout->load_view('settings/partial_settings_billcom'); ?>
             </div>
 
             <div id="settings-projects-tasks" class="tab-pane">

@@ -183,4 +183,123 @@ class Settings extends Admin_Controller
 
         redirect('settings');
     }
+
+    /**
+     * Test Bill.com connection with provided credentials
+     * Used by AJAX to test connection before saving settings
+     */
+    public function test_billcom_connection()
+    {
+        // Get test credentials from POST
+        $test_username = $this->input->post('billcom_username');
+        $test_password = $this->input->post('billcom_password');
+        $test_dev_key = $this->input->post('billcom_dev_key');
+        $test_org_id = $this->input->post('billcom_org_id');
+        $test_api_url = $this->input->post('billcom_api_url');
+        
+        // Debug logging
+        log_message('debug', 'Bill.com Test - Username: ' . ($test_username ? 'present' : 'EMPTY'));
+        log_message('debug', 'Bill.com Test - Password: ' . ($test_password ? 'present' : 'EMPTY'));
+        log_message('debug', 'Bill.com Test - Dev Key: ' . ($test_dev_key ? 'present' : 'EMPTY'));
+        log_message('debug', 'Bill.com Test - Org ID: ' . ($test_org_id ?: 'empty'));
+        log_message('debug', 'Bill.com Test - API URL: ' . ($test_api_url ?: 'empty'));
+        
+        // Validate required fields
+        if (empty($test_username) || empty($test_password) || empty($test_dev_key)) {
+            header('Content-Type: application/json');
+            echo json_encode([
+                'success' => false,
+                'message' => 'Missing required credentials (username, password, or developer key)'
+            ]);
+            return;
+        }
+        
+        if (empty($test_api_url)) {
+            $test_api_url = 'https://gateway.prod.bill.com/connect';
+        }
+        
+        // Test by calling Bill.com login API directly (bypass settings cache)
+        $login_data = [
+            'username' => $test_username,
+            'password' => $test_password,
+            'devKey' => $test_dev_key
+        ];
+        
+        // Add orgId if specified
+        if (!empty($test_org_id)) {
+            $login_data['organizationId'] = $test_org_id;
+        }
+        
+        $endpoint = $test_api_url . '/v3/login';
+        
+        // Debug: Log the exact request we're sending
+        $request_body = json_encode($login_data);
+        log_message('debug', 'Bill.com Test - Sending to: ' . $endpoint);
+        log_message('debug', 'Bill.com Test - Request body: ' . $request_body);
+        
+        try {
+            $ch = curl_init();
+            
+            $headers = [
+                'Content-Type: application/json'
+            ];
+            
+            curl_setopt($ch, CURLOPT_URL, $endpoint);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false); // TESTING ONLY
+            curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $request_body);
+            
+            $response = curl_exec($ch);
+            $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curl_error = curl_error($ch);
+            $curl_errno = curl_errno($ch);
+            
+            curl_close($ch);
+            
+            // Debug: Log the response
+            log_message('debug', 'Bill.com Test - HTTP Code: ' . $http_code);
+            log_message('debug', 'Bill.com Test - Response: ' . substr($response, 0, 500));
+            
+            if ($response === false) {
+                $result = [
+                    'success' => false,
+                    'message' => 'Connection failed: ' . $curl_error . ' (Error code: ' . $curl_errno . ')'
+                ];
+            } elseif ($http_code < 200 || $http_code >= 300) {
+                // Show the full raw response from Bill.com for debugging
+                $result = [
+                    'success' => false,
+                    'message' => 'Login failed (HTTP ' . $http_code . '). Bill.com Response: ' . $response
+                ];
+            } else {
+                // Parse success response
+                $decoded = json_decode($response, true);
+                
+                if (isset($decoded['sessionId'])) {
+                    $result = [
+                        'success' => true,
+                        'message' => 'Successfully connected to Bill.com!'
+                    ];
+                } else {
+                    $result = [
+                        'success' => false,
+                        'message' => 'Unexpected response from Bill.com (missing sessionId)'
+                    ];
+                }
+            }
+            
+        } catch (Exception $e) {
+            $result = [
+                'success' => false,
+                'message' => 'Connection error: ' . $e->getMessage()
+            ];
+        }
+        
+        // Return JSON response
+        header('Content-Type: application/json');
+        echo json_encode($result);
+    }
 }

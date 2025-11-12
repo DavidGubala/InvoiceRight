@@ -168,6 +168,24 @@ $colClass = 'col-xs-12 col-sm-6' . ($req_einvoicing ? ' col-lg-4' : '');
                                     <td><?php _auto_link($client->client_email, 'email'); ?></td>
                                 </tr>
 <?php } ?>
+<?php if (get_setting('billcom_enabled') == '1') { ?>
+                                <tr>
+                                    <th><?php _trans('billcom_status'); ?></th>
+                                    <td>
+<?php if (isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
+                                        <span class="label label-success"><i class="fa fa-check"></i> <?php _trans('enabled'); ?></span>
+<?php } else { ?>
+                                        <span class="label label-default"><?php _trans('disabled'); ?></span>
+<?php } ?>
+                                    </td>
+                                </tr>
+<?php if (!empty($client->client_billcom_customer_id)) { ?>
+                                <tr>
+                                    <th><?php _trans('client_billcom_customer_id'); ?></th>
+                                    <td><?php echo htmlspecialchars($client->client_billcom_customer_id); ?></td>
+                                </tr>
+<?php } ?>
+<?php } ?>
 <?php if ($client->client_phone) { ?>
                                 <tr>
                                     <th><?php _trans('phone'); ?></th>
@@ -546,6 +564,13 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
 ?>
         <div id="client-<?php echo $what; ?>s" class="tab-pane table-content<?php echo $activeTab == $what . 's' ? ' active' : ''; ?>">
             <div class="container-fluid">
+<?php if ($what == 'invoice' && get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
+                <div class="pull-left" style="margin:.5rem 0 -1.5rem 0">
+                    <button type="button" class="btn btn-sm btn-success" id="btn-batch-send-billcom-client" style="display:none;">
+                        <i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?>
+                    </button>
+                </div>
+<?php } ?>
                 <div class="pull-right" style="margin:.5rem 0 -1.5rem 0">
                     <?php echo pager(site_url('clients/view/' . $client->client_id . '/' . $what . 's'), 'mdl_' . $what . 's'); ?>
                 </div>
@@ -557,3 +582,87 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
 ?>
     </div>
 </div>
+
+<?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
+<script>
+$(document).ready(function() {
+    // Handle select all checkbox for client invoice tab
+    $('#select-all-invoices').on('change', function() {
+        $('.invoice-select').prop('checked', $(this).prop('checked'));
+        toggleClientBatchButton();
+    });
+
+    // Handle individual checkbox changes for client invoice tab
+    $(document).on('change', '.invoice-select', function() {
+        // Update select all checkbox if all items are selected
+        var total = $('.invoice-select').length;
+        var checked = $('.invoice-select:checked').length;
+        $('#select-all-invoices').prop('checked', total === checked);
+        toggleClientBatchButton();
+    });
+
+    // Show/hide batch send button based on selection
+    function toggleClientBatchButton() {
+        var checked = $('.invoice-select:checked').length;
+        if (checked > 0) {
+            $('#btn-batch-send-billcom-client').show();
+            $('#btn-batch-send-billcom-client').html('<i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?> (' + checked + ')');
+        } else {
+            $('#btn-batch-send-billcom-client').hide();
+        }
+    }
+
+    // Handle batch send button click for client tab
+    $('#btn-batch-send-billcom-client').on('click', function() {
+        var selectedIds = [];
+        $('.invoice-select:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+
+        if (selectedIds.length === 0) {
+            alert('<?php _trans('billcom_no_invoices_selected'); ?>');
+            return;
+        }
+
+        if (!confirm('<?php _trans('billcom_send_confirm'); ?> ' + selectedIds.length + ' <?php _trans('invoice'); ?>' + (selectedIds.length > 1 ? 's' : '') + ' <?php _trans('to'); ?> Bill.com?')) {
+            return;
+        }
+
+        // Show loading indicator
+        $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> <?php _trans('sending'); ?>...');
+
+        // Create a form and submit
+        var form = $('<form>', {
+            'method': 'POST',
+            'action': '<?php echo site_url('invoices/batch_send_to_billcom'); ?>'
+        });
+
+        // Add CSRF token
+        form.append($('<input>', {
+            'type': 'hidden',
+            'name': '<?php echo $this->security->get_csrf_token_name(); ?>',
+            'value': '<?php echo $this->security->get_csrf_hash(); ?>'
+        }));
+
+        // Add redirect URL to return to client view
+        form.append($('<input>', {
+            'type': 'hidden',
+            'name': 'redirect_url',
+            'value': '<?php echo site_url('clients/view/' . $client->client_id . '/invoices'); ?>'
+        }));
+
+        // Add invoice IDs
+        $.each(selectedIds, function(index, value) {
+            form.append($('<input>', {
+                'type': 'hidden',
+                'name': 'invoice_ids[]',
+                'value': value
+            }));
+        });
+
+        $('body').append(form);
+        form.submit();
+    });
+});
+</script>
+<?php } ?>
