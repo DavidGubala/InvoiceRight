@@ -625,16 +625,15 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
     </div>
 </div>
 
-<?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
 <script>
 $(document).ready(function() {
-    // Handle select all checkbox for client invoice tab
+    // Handle select all checkbox for client invoice tab (works regardless of Bill.com status)
     $('#select-all-invoices').on('change', function() {
         $('.invoice-select').prop('checked', $(this).prop('checked'));
         toggleClientBatchButton();
     });
 
-    // Handle individual checkbox changes for client invoice tab
+    // Handle individual checkbox changes for client invoice tab (works regardless of Bill.com status)
     $(document).on('change', '.invoice-select', function() {
         // Update select all checkbox if all items are selected
         var total = $('.invoice-select').length;
@@ -643,21 +642,26 @@ $(document).ready(function() {
         toggleClientBatchButton();
     });
 
-    // Show/hide batch send button based on selection
+    // Show/hide batch buttons based on selection (works regardless of Bill.com status)
     function toggleClientBatchButton() {
         var checked = $('.invoice-select:checked').length;
         if (checked > 0) {
+<?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
             $('#btn-batch-send-billcom-client').show();
             $('#btn-batch-send-billcom-client').html('<i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?> (' + checked + ')');
+<?php } ?>
             $('#btn-batch-download-pdf-client').show();
             $('#btn-batch-download-pdf-client').html('<i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?> (' + checked + ')');
         } else {
+<?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
             $('#btn-batch-send-billcom-client').hide();
+<?php } ?>
             $('#btn-batch-download-pdf-client').hide();
         }
     }
 
-    // Handle batch send button click for client tab
+<?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
+    // Handle batch send button click for client tab (Bill.com only)
     $('#btn-batch-send-billcom-client').on('click', function() {
         var selectedIds = [];
         $('.invoice-select:checked').each(function() {
@@ -708,8 +712,9 @@ $(document).ready(function() {
         $('body').append(form);
         form.submit();
     });
+<?php } ?>
 
-    // Handle batch PDF download button click for client tab
+    // Handle batch PDF download button click for client tab (works regardless of Bill.com status)
     $('#btn-batch-download-pdf-client').on('click', function() {
         var selectedIds = [];
         $('.invoice-select:checked').each(function() {
@@ -759,7 +764,6 @@ $(document).ready(function() {
     });
 });
 </script>
-<?php } ?>
 
 <script>
 // Infinite scroll for client invoices
@@ -846,7 +850,7 @@ $(document).ready(function() {
                         $('#invoice-load-more').show();
                     }
                     
-                    // Re-initialize batch send checkboxes if Bill.com is enabled
+                    // Re-initialize checkbox handlers for dynamically loaded invoices
                     if (typeof toggleClientBatchButton === 'function') {
                         $('.invoice-select').off('change').on('change', function() {
                             var total = $('.invoice-select').length;
