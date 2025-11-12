@@ -180,7 +180,11 @@ class Ajax extends Admin_Controller
         }
 
         $this->load->model('invoices/mdl_invoices');
+        $this->load->model('clients/mdl_clients');
         $this->load->helper('date');
+        
+        // Get client for Bill.com status
+        $client = $this->mdl_clients->get_by_id($client_id);
         
         // Apply status filter
         $this->mdl_invoices->by_client($client_id);
@@ -217,13 +221,20 @@ class Ajax extends Admin_Controller
         $html = '';
         $invoice_count = count($invoices);
         
+        // Bill.com settings
+        $billcom_enabled = get_setting('billcom_enabled') == '1';
+        $client_billcom_enabled = $client && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1;
+        $show_billcom = $billcom_enabled && $client_billcom_enabled;
+        
         foreach ($invoices as $idx => $invoice) {
             // Disable read-only if not applicable
             if ($this->config->item('disable_read_only') == true) {
                 $invoice->is_read_only = 0;
             }
             
-            $billcom_enabled = get_setting('billcom_enabled') == '1';
+            // Use dropup for last few items (after midpoint of loaded batch)
+            $dropup = $idx > ($invoice_count / 2);
+            
             $status_label = $invoice_statuses[$invoice->invoice_status_id]['label'];
             $status_class = $invoice_statuses[$invoice->invoice_status_id]['class'];
             
@@ -282,11 +293,73 @@ class Ajax extends Admin_Controller
             $html .= format_currency($invoice->invoice_balance);
             $html .= '</td>';
             
-            // Options column - simplified for loaded rows
+            // Options column - full dropdown menu
             $html .= '<td>';
-            $html .= '<a href="' . site_url('invoices/view/' . $invoice->invoice_id) . '" class="btn btn-default btn-sm">';
-            $html .= '<i class="fa fa-edit"></i> ' . trans('edit');
+            $html .= '<div class="options btn-group' . ($dropup ? ' dropup' : '') . '">';
+            $html .= '<a class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" href="#">';
+            $html .= '<i class="fa fa-cog"></i> ' . trans('options');
             $html .= '</a>';
+            $html .= '<ul class="dropdown-menu">';
+            
+            // Edit option (only if not read-only)
+            if ($invoice->is_read_only != 1) {
+                $html .= '<li>';
+                $html .= '<a href="' . site_url('invoices/view/' . $invoice->invoice_id) . '">';
+                $html .= '<i class="fa fa-edit fa-margin"></i> ' . trans('edit');
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+            
+            // Download PDF
+            $html .= '<li>';
+            $html .= '<a href="' . site_url('invoices/generate_pdf/' . $invoice->invoice_id) . '" target="_blank">';
+            $html .= '<i class="fa fa-print fa-margin"></i> ' . trans('download_pdf');
+            $html .= '</a>';
+            $html .= '</li>';
+            
+            // Email invoice
+            $html .= '<li>';
+            $html .= '<a href="' . site_url('mailer/invoice/' . $invoice->invoice_id) . '">';
+            $html .= '<i class="fa fa-send fa-margin"></i> ' . trans('send_email');
+            $html .= '</a>';
+            $html .= '</li>';
+            
+            // Copy invoice (only if status is 2, 3, or 4)
+            if (in_array($invoice->invoice_status_id, [2, 3, 4])) {
+                $html .= '<li>';
+                $html .= '<a href="' . site_url('invoices/create/' . $invoice->invoice_id) . '">';
+                $html .= '<i class="fa fa-copy fa-margin"></i> ' . trans('copy_invoice');
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+            
+            // Send to Bill.com (if enabled and invoice has Bill.com ID or can be sent)
+            if ($show_billcom) {
+                $html .= '<li>';
+                $html .= '<a href="' . site_url('invoices/send_to_billcom/' . $invoice->invoice_id) . '">';
+                $html .= '<i class="fa fa-cloud-upload fa-margin"></i> ' . trans('billcom_send_invoice');
+                if (!empty($invoice->invoice_billcom_id)) {
+                    $html .= ' <i class="fa fa-check text-success"></i>';
+                }
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+            
+            // Delete (only if draft or deletion is enabled and not read-only)
+            if ($invoice->invoice_status_id == 1 || 
+                ($this->config->item('enable_invoice_deletion') === true && $invoice->is_read_only != 1)) {
+                $html .= '<li>';
+                $html .= '<form action="' . site_url('invoices/delete/' . $invoice->invoice_id) . '" method="POST">';
+                $html .= '<input type="hidden" name="' . $this->security->get_csrf_token_name() . '" value="' . $this->security->get_csrf_hash() . '">';
+                $html .= '<button type="submit" class="dropdown-button" onclick="return confirm(\'' . trans('delete_invoice_warning') . '\');">';
+                $html .= '<i class="fa fa-trash-o fa-margin"></i> ' . trans('delete');
+                $html .= '</button>';
+                $html .= '</form>';
+                $html .= '</li>';
+            }
+            
+            $html .= '</ul>';
+            $html .= '</div>';
             $html .= '</td>';
             
             $html .= '</tr>';
