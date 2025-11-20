@@ -173,6 +173,7 @@ class Ajax extends Admin_Controller
         $offset = (int)$this->input->post('offset');
         $limit = (int)$this->input->post('limit') ?: 20;
         $status = $this->input->post('status') ?: 'all';
+        $search = $this->input->post('search');
 
         if (empty($client_id)) {
             echo json_encode(['success' => false, 'error' => 'Client ID required']);
@@ -206,6 +207,22 @@ class Ajax extends Admin_Controller
                 $this->mdl_invoices->is_overdue();
                 break;
             // 'all' - no additional filter
+        }
+        
+        // Apply search filter if provided
+        if (!empty($search)) {
+            $search = trim($search);
+            // Join with invoice items table to search item names and descriptions
+            $this->mdl_invoices->db->join('ip_invoice_items', 'ip_invoice_items.invoice_id = ip_invoices.invoice_id', 'left');
+            // Join with custom fields to search trailer numbers and other custom fields
+            $this->mdl_invoices->db->join('ip_invoice_custom', 'ip_invoice_custom.invoice_id = ip_invoices.invoice_id', 'left');
+            $this->mdl_invoices->db->group_start();
+            $this->mdl_invoices->db->like('ip_invoice_items.item_name', $search);
+            $this->mdl_invoices->db->or_like('ip_invoice_items.item_description', $search);
+            $this->mdl_invoices->db->or_like('ip_invoice_custom.invoice_custom_fieldvalue', $search);
+            $this->mdl_invoices->db->group_end();
+            // Group by to avoid duplicate invoices (an invoice can have multiple matching items/fields)
+            $this->mdl_invoices->db->group_by('ip_invoices.invoice_id');
         }
         
         // Get invoices with offset and limit

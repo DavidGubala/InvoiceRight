@@ -567,34 +567,50 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
             <?php $this->layout->load_view('layout/alerts'); ?>
             
             <div class="container-fluid" style="margin-bottom: 15px;">
-                <div class="btn-group btn-group-sm index-options pull-right">
-                    <button type="button" class="btn btn-primary invoice-status-filter" data-status="all">
-                        <?php _trans('all'); ?>
-                    </button>
-                    <button type="button" class="btn btn-default invoice-status-filter" data-status="draft">
-                        <?php _trans('draft'); ?>
-                    </button>
-                    <button type="button" class="btn btn-default invoice-status-filter" data-status="sent">
-                        <?php _trans('sent'); ?>
-                    </button>
-                    <button type="button" class="btn btn-default invoice-status-filter" data-status="viewed">
-                        <?php _trans('viewed'); ?>
-                    </button>
-                    <button type="button" class="btn btn-default invoice-status-filter" data-status="paid">
-                        <?php _trans('paid'); ?>
-                    </button>
-                    <button type="button" class="btn btn-default invoice-status-filter" data-status="overdue">
-                        <?php _trans('overdue'); ?>
-                    </button>
-                </div>
-                <button type="button" class="btn btn-sm btn-info pull-right" id="btn-batch-download-pdf-client" style="display:none; margin-right: 10px;">
-                    <i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?>
-                </button>
+                <div class="row">
+                    <div class="col-xs-12 col-md-6">
+                        <div class="input-group">
+                            <input type="text" id="invoice-search-input" class="form-control" placeholder="<?php _trans('search_invoice_items'); ?>" style="height: 34px;">
+                            <span class="input-group-btn">
+                                <button type="button" class="btn btn-default" id="invoice-search-clear" style="height: 34px;">
+                                    <i class="fa fa-times"></i>
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-xs-12 col-md-6">
+                        <div class="pull-right">
+                            <div class="btn-group btn-group-sm index-options" style="margin-right: 10px;">
+                                <button type="button" class="btn btn-primary invoice-status-filter" data-status="all">
+                                    <?php _trans('all'); ?>
+                                </button>
+                                <button type="button" class="btn btn-default invoice-status-filter" data-status="draft">
+                                    <?php _trans('draft'); ?>
+                                </button>
+                                <button type="button" class="btn btn-default invoice-status-filter" data-status="sent">
+                                    <?php _trans('sent'); ?>
+                                </button>
+                                <button type="button" class="btn btn-default invoice-status-filter" data-status="viewed">
+                                    <?php _trans('viewed'); ?>
+                                </button>
+                                <button type="button" class="btn btn-default invoice-status-filter" data-status="paid">
+                                    <?php _trans('paid'); ?>
+                                </button>
+                                <button type="button" class="btn btn-default invoice-status-filter" data-status="overdue">
+                                    <?php _trans('overdue'); ?>
+                                </button>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-info" id="btn-batch-download-pdf-client" style="display:none; margin-right: 10px;">
+                                <i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?>
+                            </button>
 <?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
-                <button type="button" class="btn btn-sm btn-success pull-right" id="btn-batch-send-billcom-client" style="display:none; margin-right: 10px;">
-                    <i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?>
-                </button>
+                            <button type="button" class="btn btn-sm btn-success" id="btn-batch-send-billcom-client" style="display:none; margin-right: 10px;">
+                                <i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?>
+                            </button>
 <?php } ?>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div style="clear: both;"></div>
 <?php } else { ?>
@@ -776,6 +792,8 @@ $(document).ready(function() {
     var isLoading = false;
     var hasMore = true;
     var currentStatus = 'all';
+    var searchTerm = '';
+    var searchTimeout = null;
     
     // Only enable infinite scroll on the invoices tab
     function initInfiniteScroll() {
@@ -831,6 +849,7 @@ $(document).ready(function() {
                 offset: invoiceOffset,
                 limit: invoiceLimit,
                 status: currentStatus,
+                search: searchTerm,
                 <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
             },
             dataType: 'json',
@@ -903,6 +922,57 @@ $(document).ready(function() {
     // Handle "Load More" button click
     $('#btn-load-more-invoices').on('click', function() {
         loadMoreInvoices();
+    });
+    
+    // Handle search input with debounce
+    $('#invoice-search-input').on('keyup', function() {
+        clearTimeout(searchTimeout);
+        var inputValue = $(this).val().trim();
+        
+        searchTimeout = setTimeout(function() {
+            if (searchTerm !== inputValue) {
+                searchTerm = inputValue;
+                
+                // Reset pagination
+                invoiceOffset = 0;
+                hasMore = true;
+                
+                // Clear current invoices
+                $('#client-invoices table tbody').empty();
+                
+                // Show loading
+                $('#invoice-loading').show();
+                $('#invoice-load-more').hide();
+                $('#invoice-end').hide();
+                
+                // Load filtered invoices
+                loadMoreInvoices();
+            }
+        }, 500); // 500ms debounce
+    });
+    
+    // Handle search clear button
+    $('#invoice-search-clear').on('click', function() {
+        $('#invoice-search-input').val('');
+        
+        if (searchTerm !== '') {
+            searchTerm = '';
+            
+            // Reset pagination
+            invoiceOffset = 0;
+            hasMore = true;
+            
+            // Clear current invoices
+            $('#client-invoices table tbody').empty();
+            
+            // Show loading
+            $('#invoice-loading').show();
+            $('#invoice-load-more').hide();
+            $('#invoice-end').hide();
+            
+            // Load filtered invoices
+            loadMoreInvoices();
+        }
     });
     
     // Initialize when the invoices tab is clicked

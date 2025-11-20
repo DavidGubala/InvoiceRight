@@ -1,0 +1,57 @@
+# Scratchpad
+
+## Current Task: Invoice Item Search Feature
+[X] Add search bar UI to client invoices view
+[X] Update AJAX controller to handle search parameter
+[X] Modify SQL query to search invoice items
+[X] Update JavaScript to pass search term
+[X] Add language translations for search
+[X] Test search with filters and infinite scroll
+[X] Add same search logic to main invoices screen
+[X] Update main invoices controller to handle search
+[X] Preserve search across pagination and filters
+
+### Implementation Details:
+**Client > Invoices Tab:**
+- Added a well-styled search input field with clear button
+- Search searches through invoice item names and descriptions (includes trailer numbers)
+- Search works with existing status filters (All, Draft, Sent, Viewed, Paid, Overdue)
+- Search uses 500ms debounce to avoid excessive AJAX calls
+- Search works seamlessly with infinite scroll
+- SQL query uses INNER JOIN with ip_invoice_items table and GROUP BY to avoid duplicates
+
+**Main Invoices Screen:**
+- Added search form with submit button and clear button
+- Same search logic: searches invoice item names and descriptions
+- Search persists across pagination and status filters using GET parameters
+- Works with existing pagination system
+- SQL query uses same INNER JOIN and GROUP BY approach
+
+### Files Modified:
+1. `application/modules/clients/views/view.php` - Added search UI and JavaScript handlers
+2. `application/modules/clients/controllers/Ajax.php` - Updated load_more_invoices() to handle search
+3. `application/modules/invoices/views/index.php` - Added search form UI, updated filter/pager links
+4. `application/modules/invoices/controllers/Invoices.php` - Updated status() to handle search parameter
+5. `application/language/english/ip_lang.php` - Added 'search_invoice_items' translation
+
+# Lessons
+
+## User Specified Lessons
+
+- You have a python venv in ./venv. Use it.
+- Include info useful for debugging in the program output.
+- Read the file before you try to edit it.
+- Due to Cursor's limit, when you use `git` and `gh` and need to submit a multiline commit message, first write the message in a file, and then use `git commit -F <filename>` or similar command to commit. And then remove the file. Include "[Cursor] " in the commit message and PR title.
+
+## Cursor learned
+
+- For search results, ensure proper handling of different character encodings (UTF-8) for international queries
+- Add debug information to stderr while keeping the main output clean in stdout for better pipeline integration
+- When using seaborn styles in matplotlib, use 'seaborn-v0_8' instead of 'seaborn' as the style name due to recent seaborn version changes
+- Use 'gpt-4o' as the model name for OpenAI's GPT-4 with vision capabilities
+- When updating invoice status after sending to Bill.com, also call generate_invoice_number_if_applicable() and mark_sent() to ensure consistency
+- CSRF tokens regenerate after AJAX calls - use Cookies.get(csrf_cookie_name) to get fresh tokens
+- date_from_mysql() requires true as second parameter during AJAX POST to format dates properly
+- When searching invoice items, use INNER JOIN with GROUP BY to avoid duplicate results
+- When searching invoices, remember that trailer numbers are stored in ip_invoice_custom table, not invoice items
+

@@ -527,6 +527,7 @@ $lang = [
     'reset_password'                               => 'Reset password',
     'run_report'                                   => 'Run Report',
     'search_product'                               => 'Search product',
+    'search_invoice_items'                         => 'Search invoice items and trailer numbers',
     'sales'                                        => 'Sales',
     'sales_by_client'                              => 'Sales by Client',
     'sales_by_date'                                => 'Sales by Date',

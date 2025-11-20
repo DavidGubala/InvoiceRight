@@ -21,32 +21,32 @@
     </div>
 
     <div class="headerbar-item pull-right visible-lg">
-        <?php echo pager(site_url('invoices/status/' . $this->uri->segment(3)), 'mdl_invoices'); ?>
+        <?php echo pager(site_url('invoices/status/' . $this->uri->segment(3)) . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''), 'mdl_invoices'); ?>
     </div>
 
     <div class="headerbar-item pull-right visible-lg">
         <div class="btn-group btn-group-sm index-options">
-            <a href="<?php echo site_url('invoices/status/all'); ?>"
+            <a href="<?php echo site_url('invoices/status/all') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                class="btn <?php echo $status == 'all' ? 'btn-primary' : 'btn-default' ?>">
                 <?php _trans('all'); ?>
             </a>
-            <a href="<?php echo site_url('invoices/status/draft'); ?>"
+            <a href="<?php echo site_url('invoices/status/draft') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                class="btn <?php echo $status == 'draft' ? 'btn-primary' : 'btn-default' ?>">
                 <?php _trans('draft'); ?>
             </a>
-            <a href="<?php echo site_url('invoices/status/sent'); ?>"
+            <a href="<?php echo site_url('invoices/status/sent') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                class="btn <?php echo $status == 'sent' ? 'btn-primary' : 'btn-default' ?>">
                 <?php _trans('sent'); ?>
             </a>
-            <a href="<?php echo site_url('invoices/status/viewed'); ?>"
+            <a href="<?php echo site_url('invoices/status/viewed') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                class="btn <?php echo $status == 'viewed' ? 'btn-primary' : 'btn-default' ?>">
                 <?php _trans('viewed'); ?>
             </a>
-            <a href="<?php echo site_url('invoices/status/paid'); ?>"
+            <a href="<?php echo site_url('invoices/status/paid') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                class="btn <?php echo $status == 'paid' ? 'btn-primary' : 'btn-default' ?>">
                 <?php _trans('paid'); ?>
             </a>
-            <a href="<?php echo site_url('invoices/status/overdue'); ?>"
+            <a href="<?php echo site_url('invoices/status/overdue') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                class="btn <?php echo $status == 'overdue' ? 'btn-primary' : 'btn-default' ?>">
                 <?php _trans('overdue'); ?>
             </a>
@@ -59,32 +59,32 @@
     <div class="collapse clearfix" id="ip-submenu-collapse">
 
         <div class="submenu-row">
-            <?php echo pager(site_url('invoices/status/' . $this->uri->segment(3)), 'mdl_invoices'); ?>
+            <?php echo pager(site_url('invoices/status/' . $this->uri->segment(3)) . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''), 'mdl_invoices'); ?>
         </div>
 
         <div class="submenu-row">
             <div class="btn-group btn-group-sm index-options">
-                <a href="<?php echo site_url('invoices/status/all'); ?>"
+                <a href="<?php echo site_url('invoices/status/all') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                    class="btn <?php echo $status == 'all' ? 'btn-primary' : 'btn-default' ?>">
                     <?php _trans('all'); ?>
                 </a>
-                <a href="<?php echo site_url('invoices/status/draft'); ?>"
+                <a href="<?php echo site_url('invoices/status/draft') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                    class="btn  <?php echo $status == 'draft' ? 'btn-primary' : 'btn-default' ?>">
                     <?php _trans('draft'); ?>
                 </a>
-                <a href="<?php echo site_url('invoices/status/sent'); ?>"
+                <a href="<?php echo site_url('invoices/status/sent') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                    class="btn  <?php echo $status == 'sent' ? 'btn-primary' : 'btn-default' ?>">
                     <?php _trans('sent'); ?>
                 </a>
-                <a href="<?php echo site_url('invoices/status/viewed'); ?>"
+                <a href="<?php echo site_url('invoices/status/viewed') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                    class="btn  <?php echo $status == 'viewed' ? 'btn-primary' : 'btn-default' ?>">
                     <?php _trans('viewed'); ?>
                 </a>
-                <a href="<?php echo site_url('invoices/status/paid'); ?>"
+                <a href="<?php echo site_url('invoices/status/paid') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                    class="btn  <?php echo $status == 'paid' ? 'btn-primary' : 'btn-default' ?>">
                     <?php _trans('paid'); ?>
                 </a>
-                <a href="<?php echo site_url('invoices/status/overdue'); ?>"
+                <a href="<?php echo site_url('invoices/status/overdue') . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''); ?>"
                    class="btn  <?php echo $status == 'overdue' ? 'btn-primary' : 'btn-default' ?>">
                     <?php _trans('overdue'); ?>
                 </a>
@@ -95,6 +95,32 @@
 </div>
 
 <div id="content" class="table-content">
+    
+    <div class="container-fluid" style="margin-bottom: 15px;">
+        <div class="row">
+            <div class="col-xs-12 col-md-6">
+                <form method="get" action="<?php echo site_url('invoices/status/' . $status); ?>" id="invoice-search-form">
+                    <div class="input-group">
+                        <input type="text" name="search" id="invoice-search-input" class="form-control" 
+                               placeholder="<?php _trans('search_invoice_items'); ?>" 
+                               value="<?php echo htmlspecialchars($this->input->get('search') ?: ''); ?>"
+                               style="height: 34px;">
+                        <span class="input-group-btn">
+                            <button type="submit" class="btn btn-primary" style="height: 34px;">
+                                <i class="fa fa-search"></i>
+                            </button>
+<?php if ($this->input->get('search')): ?>
+                            <a href="<?php echo site_url('invoices/status/' . $status); ?>" 
+                               class="btn btn-default" style="height: 34px;">
+                                <i class="fa fa-times"></i>
+                            </a>
+<?php endif; ?>
+                        </span>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
     
     <?php 
     // Debug: Check if flash data exists (TEMPORARY - remove after testing)

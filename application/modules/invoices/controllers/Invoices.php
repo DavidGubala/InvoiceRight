@@ -37,6 +37,9 @@ class Invoices extends Admin_Controller
      */
     public function status(string $status = 'all', $page = 0): void
     {
+        // Get search parameter
+        $search = $this->input->get('search');
+        
         // Determine which group of invoices to load
         switch ($status) {
             case 'draft':
@@ -56,7 +59,23 @@ class Invoices extends Admin_Controller
                 break;
         }
 
-        $this->mdl_invoices->paginate(site_url('invoices/status/' . $status), $page);
+        // Apply search filter if provided
+        if (!empty($search)) {
+            $search = trim($search);
+            // Join with invoice items table to search item names and descriptions
+            $this->mdl_invoices->db->join('ip_invoice_items', 'ip_invoice_items.invoice_id = ip_invoices.invoice_id', 'left');
+            // Join with custom fields to search trailer numbers and other custom fields
+            $this->mdl_invoices->db->join('ip_invoice_custom', 'ip_invoice_custom.invoice_id = ip_invoices.invoice_id', 'left');
+            $this->mdl_invoices->db->group_start();
+            $this->mdl_invoices->db->like('ip_invoice_items.item_name', $search);
+            $this->mdl_invoices->db->or_like('ip_invoice_items.item_description', $search);
+            $this->mdl_invoices->db->or_like('ip_invoice_custom.invoice_custom_fieldvalue', $search);
+            $this->mdl_invoices->db->group_end();
+            // Group by to avoid duplicate invoices (an invoice can have multiple matching items/fields)
+            $this->mdl_invoices->db->group_by('ip_invoices.invoice_id');
+        }
+
+        $this->mdl_invoices->paginate(site_url('invoices/status/' . $status) . (!empty($search) ? '?search=' . urlencode($search) : ''), $page);
         $invoices = $this->mdl_invoices->result();
 
         $this->layout->set(
