@@ -44,7 +44,7 @@ $invoice_disabled = $invoice->is_read_only != 1 ? '' : ' disabled="disabled"';
 
                 <div class="input-group">
                     <span class="input-group-addon"><?php _trans('item'); ?></span>
-                    <input type="text" name="item_name" class="form-control" value="">
+                    <input type="text" name="item_name" class="form-control" spellcheck="true" value="">
                 </div>
             </td>
             <td class="td-amount td-quantity">
@@ -101,7 +101,7 @@ if ($invoice->sumex_id == '') {
             <td class="td-textarea">
                 <div class="input-group">
                     <span class="input-group-addon"><?php _trans('description'); ?></span>
-                    <textarea name="item_description" class="form-control"></textarea>
+                    <textarea name="item_description" class="form-control" spellcheck="true"></textarea>
                 </div>
             </td>
 <?php
@@ -189,7 +189,7 @@ foreach ($items as $item) {
 
                 <div class="input-group">
                     <span class="input-group-addon"><?php _trans('item'); ?></span>
-                    <input type="text" name="item_name" class="form-control"
+                    <input type="text" name="item_name" class="form-control" spellcheck="true"
                            value="<?php _htmlsc($item->item_name); ?>"<?php echo $invoice_disabled; ?>>
                 </div>
             </td>
@@ -257,7 +257,7 @@ foreach ($items as $item) {
                     <td class="td-textarea">
                         <div class="input-group">
                             <span class="input-group-addon"><?php _trans('description'); ?></span>
-                            <textarea name="item_description" class="form-control"<?php echo $invoice_disabled; ?>
+                            <textarea name="item_description" class="form-control" spellcheck="true"<?php echo $invoice_disabled; ?>
                             ><?php echo htmlsc($item->item_description); ?></textarea>
                         </div>
                     </td>

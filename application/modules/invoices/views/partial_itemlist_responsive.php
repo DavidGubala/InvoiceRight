@@ -31,14 +31,14 @@ if ($invoice->invoice_is_recurring) {
                         <div class="col-xs-12 col-sm-11">
                             <div class="input-group">
                                 <label for="item_name" class="input-group-addon ig-addon-aligned"><?php _trans('item'); ?></label>
-                                <input type="text" name="item_name" id="item_name" class="form-control" value="">
+                                <input type="text" name="item_name" id="item_name" class="form-control" spellcheck="true" value="">
                             </div>
                             <div class="input-group">
 <?php
 if ($invoice->sumex_id == '') {
 ?>
                                 <label for="item_description" class="input-group-addon ig-addon-aligned"><?php _trans('description'); ?></label>
-                                <textarea name="item_description" id="item_description" class="form-control"></textarea>
+                                <textarea name="item_description" id="item_description" class="form-control" spellcheck="true"></textarea>
 <?php
 } else {
 ?>
@@ -206,7 +206,7 @@ foreach ($items as $item) {
 
                             <div class="input-group">
                                 <label for="item_name_<?php echo $item->item_id; ?>" class="input-group-addon ig-addon-aligned"><?php _trans('item'); ?></label>
-                                <input type="text" name="item_name" id="item_name_<?php echo $item->item_id; ?>" class="form-control" value="<?php echo _htmlsc($item->item_name); ?>"<?php echo $invoice_disabled; ?>>
+                                <input type="text" name="item_name" id="item_name_<?php echo $item->item_id; ?>" class="form-control" spellcheck="true" value="<?php echo _htmlsc($item->item_name); ?>"<?php echo $invoice_disabled; ?>>
                             </div>
 
                             <div class="input-group">
@@ -214,7 +214,7 @@ foreach ($items as $item) {
     if ($invoice->sumex_id == '') {
 ?>
                                 <label for="item_description_<?php echo $item->item_id; ?>" class="input-group-addon ig-addon-aligned"><?php _trans('description'); ?></label>
-                                <textarea name="item_description" id="item_description_<?php echo $item->item_id; ?>" class="form-control"<?php echo $invoice_disabled; ?>><?php _htmlsc($item->item_description); ?></textarea>
+                                <textarea name="item_description" id="item_description_<?php echo $item->item_id; ?>" class="form-control" spellcheck="true"<?php echo $invoice_disabled; ?>><?php _htmlsc($item->item_description); ?></textarea>
 <?php
     } else {
 ?>
