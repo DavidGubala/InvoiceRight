@@ -845,7 +845,7 @@ $(document).ready(function() {
 // Infinite scroll for client invoices
 $(document).ready(function() {
     var clientId = <?php echo $client->client_id; ?>;
-    var invoiceOffset = 20; // Initial load was 20
+    var invoiceOffset = <?php echo count($invoices); ?>; // Initial load count
     var invoiceLimit = 20;
     var isLoading = false;
     var hasMore = true;
@@ -1059,7 +1059,7 @@ $(document).ready(function() {
 // Infinite scroll for client payments
 $(document).ready(function() {
     var clientId = <?php echo $client->client_id; ?>;
-    var paymentOffset = 5; // Initial load was 5 (see Clients controller line 283)
+    var paymentOffset = <?php echo count($payments); ?>; // Initial load count
     var paymentLimit = 20;
     var isLoadingPayments = false;
     var hasMorePayments = true;
