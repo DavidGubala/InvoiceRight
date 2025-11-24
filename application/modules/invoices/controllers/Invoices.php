@@ -728,4 +728,224 @@ class Invoices extends Admin_Controller
 
         exit; // Important: prevent any further output
     }
+
+    /**
+     * AJAX endpoint for loading more invoices (infinite scroll)
+     */
+    public function load_more_invoices(): void
+    {
+        if (!$this->input->is_ajax_request()) {
+            show_404();
+            return;
+        }
+
+        $this->load->helper('date');
+
+        $offset = $this->input->post('offset') ?: 0;
+        $limit = $this->input->post('limit') ?: 20;
+        $status = $this->input->post('status') ?: 'all';
+        $search = $this->input->post('search') ?: '';
+
+        // Apply status filter
+        switch ($status) {
+            case 'draft':
+                $this->mdl_invoices->is_draft();
+                break;
+            case 'sent':
+                $this->mdl_invoices->is_sent();
+                break;
+            case 'viewed':
+                $this->mdl_invoices->is_viewed();
+                break;
+            case 'paid':
+                $this->mdl_invoices->is_paid();
+                break;
+            case 'overdue':
+                $this->mdl_invoices->is_overdue();
+                break;
+        }
+
+        // Apply search filter if provided
+        if (!empty($search)) {
+            $search = trim($search);
+            // Join with invoice items table to search item names and descriptions
+            $this->mdl_invoices->db->join('ip_invoice_items', 'ip_invoice_items.invoice_id = ip_invoices.invoice_id', 'left');
+            // Join with custom fields to search trailer numbers and other custom fields
+            $this->mdl_invoices->db->join('ip_invoice_custom', 'ip_invoice_custom.invoice_id = ip_invoices.invoice_id', 'left');
+            $this->mdl_invoices->db->group_start();
+            $this->mdl_invoices->db->like('ip_invoice_items.item_name', $search);
+            $this->mdl_invoices->db->or_like('ip_invoice_items.item_description', $search);
+            $this->mdl_invoices->db->or_like('ip_invoice_custom.invoice_custom_fieldvalue', $search);
+            $this->mdl_invoices->db->group_end();
+            // Group by to avoid duplicate invoices (an invoice can have multiple matching items/fields)
+            $this->mdl_invoices->db->group_by('ip_invoices.invoice_id');
+        }
+
+        // Get invoices with offset and limit
+        $invoices = $this->mdl_invoices
+            ->limit($limit, $offset)
+            ->get()
+            ->result();
+
+        // Get invoice statuses for rendering
+        $invoice_statuses = $this->mdl_invoices->statuses();
+
+        // Render invoice rows as HTML
+        $html = '';
+        foreach ($invoices as $invoice) {
+            // Disable read-only if not applicable
+            if ($this->config->item('disable_read_only') == true) {
+                $invoice->is_read_only = 0;
+            }
+
+            $html .= '<tr>';
+            
+            // Checkbox
+            $html .= '<td class="text-center">';
+            $html .= '<input type="checkbox" class="invoice-select" value="' . $invoice->invoice_id . '">';
+            $html .= '</td>';
+            
+            // Status
+            $html .= '<td>';
+            $html .= '<span class="label ' . $invoice_statuses[$invoice->invoice_status_id]['class'] . '">';
+            $html .= $invoice_statuses[$invoice->invoice_status_id]['label'];
+            if ($invoice->invoice_sign == '-1') {
+                $html .= '&nbsp;<i class="fa fa-credit-invoice" title="' . trans('credit_invoice') . '"></i>';
+            }
+            if ($invoice->is_read_only) {
+                $html .= '&nbsp;<i class="fa fa-read-only" title="' . trans('read_only') . '"></i>';
+            }
+            if ($invoice->invoice_is_recurring) {
+                $html .= '&nbsp;<i class="fa fa-refresh" title="' . trans('recurring') . '"></i>';
+            }
+            $html .= '</span>';
+            $html .= '</td>';
+            
+            // Invoice number
+            $html .= '<td>';
+            $html .= '<a href="' . site_url('invoices/view/' . $invoice->invoice_id) . '" title="' . trans('edit') . '">';
+            $html .= $invoice->invoice_number ? htmlsc($invoice->invoice_number) : $invoice->invoice_id;
+            $html .= '</a>';
+            $html .= '</td>';
+            
+            // Created date
+            $html .= '<td>' . date_from_mysql($invoice->invoice_date_created, true) . '</td>';
+            
+            // Due date
+            $html .= '<td>';
+            $html .= '<span class="' . ($invoice->is_overdue ? 'font-overdue' : '') . '">';
+            $html .= date_from_mysql($invoice->invoice_date_due, true);
+            $html .= '</span>';
+            $html .= '</td>';
+            
+            // Client name
+            $html .= '<td>';
+            $html .= '<a href="' . site_url('clients/view/' . $invoice->client_id) . '" title="' . trans('view_client') . '">';
+            $html .= htmlsc(format_client($invoice));
+            $html .= '</a>';
+            $html .= '</td>';
+            
+            // Amount
+            $html .= '<td class="amount ' . (($invoice->invoice_sign == '-1') ? 'text-danger' : '') . '">';
+            $html .= format_currency($invoice->invoice_total);
+            $html .= '</td>';
+            
+            // Balance
+            $html .= '<td class="amount last">';
+            $html .= format_currency($invoice->invoice_balance);
+            $html .= '</td>';
+            
+            // Options dropdown
+            $html .= '<td>';
+            $html .= '<div class="options btn-group">';
+            $html .= '<a class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" href="#">';
+            $html .= '<i class="fa fa-cog"></i> ' . trans('options');
+            $html .= '</a>';
+            $html .= '<ul class="dropdown-menu">';
+            
+            // Edit option
+            if ($invoice->is_read_only != 1) {
+                $html .= '<li>';
+                $html .= '<a href="' . site_url('invoices/view/' . $invoice->invoice_id) . '">';
+                $html .= '<i class="fa fa-edit fa-margin"></i> ' . trans('edit');
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+            
+            // Download PDF
+            $html .= '<li>';
+            $html .= '<a href="' . site_url('invoices/generate_pdf/' . $invoice->invoice_id) . '" target="_blank">';
+            $html .= '<i class="fa fa-print fa-margin"></i> ' . trans('download_pdf');
+            $html .= '</a>';
+            $html .= '</li>';
+            
+            // Send email
+            $html .= '<li>';
+            $html .= '<a href="' . site_url('mailer/invoice/' . $invoice->invoice_id) . '">';
+            $html .= '<i class="fa fa-send fa-margin"></i> ' . trans('send_email');
+            $html .= '</a>';
+            $html .= '</li>';
+            
+            // Enter payment
+            $html .= '<li>';
+            $html .= '<a href="#" class="invoice-add-payment" ';
+            $html .= 'data-invoice-id="' . $invoice->invoice_id . '" ';
+            $html .= 'data-invoice-balance="' . $invoice->invoice_balance . '" ';
+            $html .= 'data-invoice-payment-method="' . $invoice->payment_method . '">';
+            $html .= '<i class="fa fa-money fa-margin"></i> ' . trans('enter_payment');
+            $html .= '</a>';
+            $html .= '</li>';
+            
+            // Bill.com integration option
+            if (get_setting('billcom_enabled') == '1') {
+                $has_billcom_id = !empty($invoice->invoice_billcom_id);
+                $client_billcom_enabled = (isset($invoice->client_billcom_enabled) && $invoice->client_billcom_enabled) ? 1 : 0;
+                
+                $html .= '<li>';
+                $html .= '<a href="' . site_url('invoices/send_to_billcom/' . $invoice->invoice_id) . '"';
+                if (!$client_billcom_enabled) {
+                    $html .= ' title="' . trans('billcom_client_disabled') . '" style="color: #999;"';
+                }
+                $html .= '>';
+                $html .= '<i class="fa fa-cloud-upload fa-margin"></i> ' . trans('billcom_send_invoice');
+                if ($has_billcom_id) {
+                    $html .= ' <span class="label label-success" style="font-size:9px;"><i class="fa fa-check"></i></span>';
+                } elseif (!$client_billcom_enabled) {
+                    $html .= ' <span class="label label-default" style="font-size:9px;"><i class="fa fa-ban"></i></span>';
+                }
+                $html .= '</a>';
+                $html .= '</li>';
+            }
+            
+            // Delete option
+            if ($invoice->invoice_status_id == 1 || ($this->config->item('enable_invoice_deletion') === true && $invoice->is_read_only != 1)) {
+                $html .= '<li>';
+                $html .= '<form action="' . site_url('invoices/delete/' . $invoice->invoice_id) . '" method="POST">';
+                $html .= '<input type="hidden" name="' . $this->security->get_csrf_token_name() . '" value="' . $this->security->get_csrf_hash() . '">';
+                $html .= '<button type="submit" class="dropdown-button" onclick="return confirm(\'' . trans('delete_invoice_warning') . '\');">';
+                $html .= '<i class="fa fa-trash-o fa-margin"></i> ' . trans('delete');
+                $html .= '</button>';
+                $html .= '</form>';
+                $html .= '</li>';
+            }
+            
+            $html .= '</ul>';
+            $html .= '</div>';
+            $html .= '</td>';
+            
+            $html .= '</tr>';
+        }
+
+        // Check if there are more invoices to load
+        $has_more = count($invoices) >= $limit;
+
+        // Return JSON response
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'html' => $html,
+                'count' => count($invoices),
+                'has_more' => $has_more
+            ]));
+    }
 }

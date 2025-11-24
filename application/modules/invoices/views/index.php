@@ -20,7 +20,7 @@
         </a>
     </div>
 
-    <div class="headerbar-item pull-right visible-lg">
+    <div class="headerbar-item pull-right visible-lg" style="display:none;">
         <?php echo pager(site_url('invoices/status/' . $this->uri->segment(3)) . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''), 'mdl_invoices'); ?>
     </div>
 
@@ -58,7 +58,7 @@
 <div id="submenu">
     <div class="collapse clearfix" id="ip-submenu-collapse">
 
-        <div class="submenu-row">
+        <div class="submenu-row" style="display:none;">
             <?php echo pager(site_url('invoices/status/' . $this->uri->segment(3)) . (isset($_GET['search']) ? '?search=' . urlencode($_GET['search']) : ''), 'mdl_invoices'); ?>
         </div>
 
@@ -137,10 +137,110 @@
     <div id="filter_results">
         <?php $this->layout->load_view('invoices/partial_invoice_table'); ?>
     </div>
+    
+    <!-- Infinite Scroll Controls -->
+    <div id="invoice-load-more" class="text-center" style="padding: 20px;">
+        <button type="button" id="btn-load-more-invoices" class="btn btn-default">
+            <i class="fa fa-arrow-down"></i> <?php _trans('load_more'); ?>
+        </button>
+    </div>
+    
+    <div id="invoice-loading" class="text-center" style="padding: 20px; display: none;">
+        <i class="fa fa-spinner fa-spin fa-2x"></i>
+        <p><?php _trans('loading'); ?>...</p>
+    </div>
+    
+    <div id="invoice-end" class="text-center" style="padding: 20px; display: none; color: #999;">
+        <i class="fa fa-check"></i> <?php _trans('no_more_invoices'); ?>
+    </div>
 </div>
 
 <script>
 $(document).ready(function() {
+    // Infinite scroll variables
+    var currentOffset = <?php echo count($invoices); ?>;
+    var isLoading = false;
+    var hasMoreInvoices = true;
+    var currentStatus = '<?php echo $status; ?>';
+    var currentSearch = '<?php echo htmlspecialchars($this->input->get('search') ?: '', ENT_QUOTES); ?>';
+
+    // Initialize infinite scroll
+    initInfiniteScroll();
+
+    function initInfiniteScroll() {
+        // Auto-load on scroll
+        $(window).on('scroll', function() {
+            checkScrollPosition();
+        });
+        
+        // Manual load button
+        $('#btn-load-more-invoices').on('click', function() {
+            loadMoreInvoices();
+        });
+    }
+
+    function checkScrollPosition() {
+        if (isLoading || !hasMoreInvoices) return;
+        
+        var scrollTop = $(window).scrollTop();
+        var windowHeight = $(window).height();
+        var docHeight = $(document).height();
+        
+        // Trigger load when user is 200px from bottom
+        if (scrollTop + windowHeight >= docHeight - 200) {
+            loadMoreInvoices();
+        }
+    }
+
+    function loadMoreInvoices() {
+        if (isLoading || !hasMoreInvoices) return;
+        
+        isLoading = true;
+        $('#invoice-load-more').hide();
+        $('#invoice-loading').show();
+        
+        $.ajax({
+            url: '<?php echo site_url('invoices/load_more_invoices'); ?>',
+            method: 'POST',
+            data: {
+                offset: currentOffset,
+                limit: 20,
+                status: currentStatus,
+                search: currentSearch,
+                <?php echo $this->security->get_csrf_token_name(); ?>: '<?php echo $this->security->get_csrf_hash(); ?>'
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.html && response.count > 0) {
+                    // Append new invoice rows
+                    $('#filter_results table tbody').append(response.html);
+                    currentOffset += response.count;
+                    
+                    if (!response.has_more) {
+                        hasMoreInvoices = false;
+                        $('#invoice-load-more').hide();
+                        $('#invoice-end').show();
+                    } else {
+                        $('#invoice-load-more').show();
+                    }
+                } else {
+                    hasMoreInvoices = false;
+                    $('#invoice-load-more').hide();
+                    $('#invoice-end').show();
+                }
+                
+                $('#invoice-loading').hide();
+                isLoading = false;
+            },
+            error: function() {
+                alert('<?php _trans('error_loading_invoices'); ?>');
+                $('#invoice-loading').hide();
+                $('#invoice-load-more').show();
+                isLoading = false;
+            }
+        });
+    }
+
     // Handle select all checkbox
     $('#select-all-invoices').on('change', function() {
         $('.invoice-select').prop('checked', $(this).prop('checked'));

@@ -1,38 +1,97 @@
 # Scratchpad
 
-## Current Task: Invoice Item Search Feature
-[X] Add search bar UI to client invoices view
-[X] Update AJAX controller to handle search parameter
-[X] Modify SQL query to search invoice items
-[X] Update JavaScript to pass search term
-[X] Add language translations for search
-[X] Test search with filters and infinite scroll
-[X] Add same search logic to main invoices screen
-[X] Update main invoices controller to handle search
-[X] Preserve search across pagination and filters
+## Current Task: Infinite Scroll for Invoices and Payments Pages
+[X] Create AJAX endpoint for loading more invoices
+[X] Update main invoices view to add infinite scroll UI
+[X] Add JavaScript for infinite scroll functionality
+[X] Hide pagination arrows for infinite scroll
+[X] Add AJAX endpoint for client payments infinite scroll
+[X] Add infinite scroll UI to client payments tab
+[X] Add AJAX endpoint for main payments page
+[X] Add infinite scroll UI to main payments page
+[X] Add language translations
+[X] Test infinite scroll with filters and search
 
 ### Implementation Details:
-**Client > Invoices Tab:**
-- Added a well-styled search input field with clear button
-- Search searches through invoice item names and descriptions (includes trailer numbers)
-- Search works with existing status filters (All, Draft, Sent, Viewed, Paid, Overdue)
-- Search uses 500ms debounce to avoid excessive AJAX calls
-- Search works seamlessly with infinite scroll
-- SQL query uses INNER JOIN with ip_invoice_items table and GROUP BY to avoid duplicates
+**Main Invoices Screen Infinite Scroll:**
+- Replaced traditional pagination with infinite scroll for smoother browsing
+- Added AJAX endpoint `load_more_invoices()` in Invoices controller
+- Automatic loading when user scrolls within 200px of bottom
+- Manual "Load More" button as fallback
+- Shows loading spinner and "No more invoices" message at end
+- Loads 20 invoices per request
+- Works seamlessly with existing status filters (All, Draft, Sent, Viewed, Paid, Overdue)
+- Works seamlessly with search functionality
+- Maintains checkbox selections and batch operations across dynamically loaded content
+- Uses proper CSRF token handling for AJAX requests
+- Renders complete invoice rows with all options (edit, PDF, email, payment, Bill.com, delete)
+- Preserves Bill.com status indicators on dynamically loaded invoices
+- Hidden pagination controls (still exist for compatibility but not visible)
 
-**Main Invoices Screen:**
-- Added search form with submit button and clear button
-- Same search logic: searches invoice item names and descriptions
-- Search persists across pagination and status filters using GET parameters
-- Works with existing pagination system
-- SQL query uses same INNER JOIN and GROUP BY approach
+**Client > Payments Tab Infinite Scroll:**
+- Added AJAX endpoint `load_more_payments()` in Clients/Ajax controller
+- Automatic loading when user scrolls within 500px of bottom
+- Manual "Load More" button as fallback
+- Shows loading spinner and "No more payments" message at end
+- Loads 20 payments per request
+- Renders complete payment rows with all options (edit, delete)
+- Hidden pagination controls for payments tab
+
+**Main Payments Screen Infinite Scroll:**
+- Added AJAX endpoint `load_more_payments()` in Payments controller
+- Automatic loading when user scrolls within 200px of bottom
+- Manual "Load More" button as fallback
+- Shows loading spinner and "No more payments" message at end
+- Loads 20 payments per request
+- Renders complete payment rows with all options (edit, delete)
+- Hidden pagination controls
 
 ### Files Modified:
-1. `application/modules/clients/views/view.php` - Added search UI and JavaScript handlers
-2. `application/modules/clients/controllers/Ajax.php` - Updated load_more_invoices() to handle search
-3. `application/modules/invoices/views/index.php` - Added search form UI, updated filter/pager links
-4. `application/modules/invoices/controllers/Invoices.php` - Updated status() to handle search parameter
-5. `application/language/english/ip_lang.php` - Added 'search_invoice_items' translation
+1. `application/modules/invoices/controllers/Invoices.php`:
+   - Added `load_more_invoices()` AJAX endpoint method
+   - Accepts offset, limit, status, and search parameters
+   - Applies same filters as main status() method
+   - Renders complete invoice rows as HTML
+   - Returns JSON with html, count, and has_more flag
+   
+2. `application/modules/invoices/views/index.php`:
+   - Hidden pagination controls (display:none)
+   - Added infinite scroll UI elements (load-more button, loading spinner, end message)
+   - Added JavaScript for infinite scroll functionality
+   - Auto-load on scroll (200px from bottom)
+   - Manual load button as fallback
+   - Integrated with existing checkbox and batch operations
+
+3. `application/modules/clients/controllers/Ajax.php`:
+   - Added `load_more_payments()` AJAX endpoint method for client payments
+   - Accepts client_id, offset, and limit parameters
+   - Renders complete payment rows as HTML
+   - Returns JSON with html, count, and has_more flag
+
+4. `application/modules/clients/views/view.php`:
+   - Added infinite scroll UI for payments tab
+   - Hidden pagination controls for payments tab
+   - Added JavaScript for payment infinite scroll
+   - Auto-load on scroll (500px from bottom)
+   - Manual load button as fallback
+
+5. `application/modules/payments/controllers/Payments.php`:
+   - Added `load_more_payments()` AJAX endpoint method for main payments page
+   - Accepts offset and limit parameters
+   - Renders complete payment rows as HTML
+   - Returns JSON with html, count, and has_more flag
+
+6. `application/modules/payments/views/index.php`:
+   - Hidden pagination controls (display:none)
+   - Added infinite scroll UI elements (load-more button, loading spinner, end message)
+   - Added JavaScript for infinite scroll functionality
+   - Auto-load on scroll (200px from bottom)
+   - Manual load button as fallback
+   
+7. `application/language/english/ip_lang.php`:
+   - Added 'error_loading_invoices' translation
+   - Added 'no_more_payments' translation
+   - Added 'error_loading_payments' translation
 
 # Lessons
 
@@ -54,4 +113,7 @@
 - date_from_mysql() requires true as second parameter during AJAX POST to format dates properly
 - When searching invoice items, use INNER JOIN with GROUP BY to avoid duplicate results
 - When searching invoices, remember that trailer numbers are stored in ip_invoice_custom table, not invoice items
+- For infinite scroll on main pages, hide pagination with display:none instead of removing it entirely (maintains compatibility)
+- AJAX-loaded invoice rows must include all functionality: checkboxes, options dropdown, Bill.com status indicators, etc.
+- Use $(document).on() event delegation for dynamically loaded content (checkboxes, payment forms, etc.)
 

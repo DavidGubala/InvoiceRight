@@ -858,4 +858,7 @@ $lang = [
     'loading'                      => 'Loading',
     'load_more'                    => 'Load More',
     'no_more_invoices'             => 'No more invoices to load',
+    'error_loading_invoices'       => 'Error loading invoices. Please try again.',
+    'no_more_payments'             => 'No more payments to load',
+    'error_loading_payments'       => 'Error loading payments. Please try again.',
 ];

@@ -615,7 +615,7 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
             <div style="clear: both;"></div>
 <?php } else { ?>
             <div class="container-fluid">
-                <div class="pull-right" style="margin:.5rem 0 -1.5rem 0">
+                <div class="pull-right" style="margin:.5rem 0 -1.5rem 0; <?php echo ($what == 'payment') ? 'display:none;' : ''; ?>">
                     <?php echo pager(site_url('clients/view/' . $client->client_id . '/' . $what . 's'), 'mdl_' . $what . 's'); ?>
                 </div>
             </div>
@@ -634,6 +634,20 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
             <div id="invoice-end" class="text-center" style="padding: 20px; display: none; color: #999;">
                 <i class="fa fa-check"></i>
                 <p><?php _trans('no_more_invoices'); ?></p>
+            </div>
+<?php } elseif ($what == 'payment') { ?>
+            <div id="payment-load-more" class="text-center" style="padding: 20px;">
+                <button type="button" class="btn btn-default" id="btn-load-more-payments">
+                    <i class="fa fa-chevron-down"></i> <?php _trans('load_more'); ?>
+                </button>
+            </div>
+            <div id="payment-loading" class="text-center" style="padding: 20px; display: none;">
+                <i class="fa fa-spinner fa-spin fa-2x"></i>
+                <p><?php _trans('loading'); ?>...</p>
+            </div>
+            <div id="payment-end" class="text-center" style="padding: 20px; display: none; color: #999;">
+                <i class="fa fa-check"></i>
+                <p><?php _trans('no_more_payments'); ?></p>
             </div>
 <?php } ?>
         </div>
@@ -983,6 +997,116 @@ $(document).ready(function() {
     // Initialize immediately if on invoices tab
     if ($('#client-invoices').hasClass('active')) {
         initInfiniteScroll();
+    }
+});
+
+// Infinite scroll for client payments
+$(document).ready(function() {
+    var clientId = <?php echo $client->client_id; ?>;
+    var paymentOffset = 5; // Initial load was 5 (see Clients controller line 283)
+    var paymentLimit = 20;
+    var isLoadingPayments = false;
+    var hasMorePayments = true;
+    
+    // Only enable infinite scroll on the payments tab
+    function initPaymentInfiniteScroll() {
+        if (!$('#client-payments').hasClass('active')) {
+            return;
+        }
+        
+        // Detect scroll on both window and the tab container
+        $(window).on('scroll.paymentScroll', checkPaymentScrollPosition);
+        $('#client-payments').on('scroll.paymentScroll', checkPaymentScrollPosition);
+        
+        // Also check on window resize (in case content changes)
+        $(window).on('resize.paymentScroll', checkPaymentScrollPosition);
+    }
+    
+    function checkPaymentScrollPosition() {
+        // Check if we're in the payments tab
+        if (!$('#client-payments').hasClass('active') || !hasMorePayments || isLoadingPayments) {
+            return;
+        }
+        
+        // Get the payment table
+        var $paymentTable = $('#client-payments table');
+        if ($paymentTable.length === 0) {
+            return;
+        }
+        
+        // Calculate if we're near the bottom
+        var tableBottom = $paymentTable.offset().top + $paymentTable.height();
+        var viewportBottom = $(window).scrollTop() + $(window).height();
+        
+        // Trigger when table bottom is within 500px of viewport bottom
+        if (viewportBottom >= tableBottom - 500) {
+            loadMorePayments();
+        }
+    }
+    
+    function loadMorePayments() {
+        if (isLoadingPayments || !hasMorePayments) {
+            return;
+        }
+        
+        isLoadingPayments = true;
+        $('#payment-load-more').hide();
+        $('#payment-loading').show();
+        
+        $.ajax({
+            url: '<?php echo site_url('clients/ajax/load_more_payments'); ?>',
+            type: 'POST',
+            data: {
+                client_id: clientId,
+                offset: paymentOffset,
+                limit: paymentLimit,
+                <?php echo $this->security->get_csrf_token_name(); ?>: Cookies.get(csrf_cookie_name)
+            },
+            dataType: 'json',
+            success: function(response) {
+                if (response.html && response.count > 0) {
+                    // Append new payment rows
+                    $('#client-payments table tbody').append(response.html);
+                    paymentOffset += response.count;
+                    
+                    if (!response.has_more) {
+                        hasMorePayments = false;
+                        $('#payment-load-more').hide();
+                        $('#payment-end').show();
+                    } else {
+                        $('#payment-load-more').show();
+                    }
+                } else {
+                    hasMorePayments = false;
+                    $('#payment-load-more').hide();
+                    $('#payment-end').show();
+                }
+                
+                $('#payment-loading').hide();
+                isLoadingPayments = false;
+            },
+            error: function() {
+                alert('<?php _trans('error_loading_payments'); ?>');
+                $('#payment-loading').hide();
+                $('#payment-load-more').show();
+                isLoadingPayments = false;
+            }
+        });
+    }
+    
+    // Manual load more button
+    $('#btn-load-more-payments').on('click', function() {
+        loadMorePayments();
+    });
+    
+    // Initialize when the payments tab is clicked
+    $('a[href="#client-payments"]').on('shown.bs.tab', function() {
+        initPaymentInfiniteScroll();
+    });
+    
+    // Initialize immediately if on payments tab
+    if ($('#client-payments').hasClass('active')) {
+        initPaymentInfiniteScroll();
     }
 });
 </script>

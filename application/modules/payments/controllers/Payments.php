@@ -181,4 +181,104 @@ class Payments extends Admin_Controller
         $this->mdl_payments->delete($id);
         redirect('payments');
     }
+
+    /**
+     * AJAX endpoint for loading more payments (infinite scroll)
+     */
+    public function load_more_payments()
+    {
+        if (!$this->input->is_ajax_request()) {
+            show_404();
+            return;
+        }
+
+        $this->load->helper('date');
+
+        $offset = $this->input->post('offset') ?: 0;
+        $limit = $this->input->post('limit') ?: 20;
+
+        // Get payments with offset and limit
+        $payments = $this->mdl_payments
+            ->limit($limit, $offset)
+            ->get()
+            ->result();
+
+        // Render payment rows as HTML
+        $html = '';
+        foreach ($payments as $payment) {
+            $html .= '<tr>';
+            
+            // Payment date
+            $html .= '<td>' . date_from_mysql($payment->payment_date, true) . '</td>';
+            
+            // Invoice date
+            $html .= '<td>' . date_from_mysql($payment->invoice_date_created, true) . '</td>';
+            
+            // Invoice number
+            $html .= '<td>';
+            $html .= '<a href="' . site_url('invoices/view/' . $payment->invoice_id) . '">';
+            $html .= htmlsc($payment->invoice_number);
+            $html .= '</a>';
+            $html .= '</td>';
+            
+            // Client name
+            $html .= '<td>';
+            $html .= '<a href="' . site_url('clients/view/' . $payment->client_id) . '" title="' . trans('view_client') . '">';
+            $html .= htmlsc(format_client($payment));
+            $html .= '</a>';
+            $html .= '</td>';
+            
+            // Amount
+            $html .= '<td class="amount last">' . format_currency($payment->payment_amount) . '</td>';
+            
+            // Payment method
+            $html .= '<td>' . htmlsc($payment->payment_method_name) . '</td>';
+            
+            // Note
+            $html .= '<td>' . htmlsc($payment->payment_note) . '</td>';
+            
+            // Options dropdown
+            $html .= '<td>';
+            $html .= '<div class="options btn-group">';
+            $html .= '<a class="btn btn-default btn-sm dropdown-toggle" data-toggle="dropdown" href="#">';
+            $html .= '<i class="fa fa-cog"></i> ' . trans('options');
+            $html .= '</a>';
+            $html .= '<ul class="dropdown-menu">';
+            
+            // Edit
+            $html .= '<li>';
+            $html .= '<a href="' . site_url('payments/form/' . $payment->payment_id) . '">';
+            $html .= '<i class="fa fa-edit fa-margin"></i> ' . trans('edit');
+            $html .= '</a>';
+            $html .= '</li>';
+            
+            // Delete
+            $html .= '<li>';
+            $html .= '<form action="' . site_url('payments/delete/' . $payment->payment_id) . '" method="POST">';
+            $html .= '<input type="hidden" name="' . $this->security->get_csrf_token_name() . '" value="' . $this->security->get_csrf_hash() . '">';
+            $html .= '<button type="submit" class="dropdown-button" onclick="return confirm(\'' . trans('delete_record_warning') . '\');">';
+            $html .= '<i class="fa fa-trash-o fa-margin"></i> ' . trans('delete');
+            $html .= '</button>';
+            $html .= '</form>';
+            $html .= '</li>';
+            
+            $html .= '</ul>';
+            $html .= '</div>';
+            $html .= '</td>';
+            
+            $html .= '</tr>';
+        }
+
+        // Check if there are more payments to load
+        $has_more = count($payments) >= $limit;
+
+        // Return JSON response
+        $this->output
+            ->set_content_type('application/json')
+            ->set_output(json_encode([
+                'html' => $html,
+                'count' => count($payments),
+                'has_more' => $has_more
+            ]));
+    }
 }
