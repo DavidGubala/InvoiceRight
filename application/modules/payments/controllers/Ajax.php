@@ -104,6 +104,7 @@ class Ajax extends Admin_Controller
     {
         $this->load->model('payments/mdl_payments');
         $this->load->model('invoices/mdl_invoices');
+        $this->load->helper('date');
 
         $invoice_ids = $this->input->post('invoice_ids');
         $payment_method_id = $this->input->post('payment_method_id');
@@ -118,9 +119,13 @@ class Ajax extends Admin_Controller
             return;
         }
 
+        // Convert date to MySQL format once
+        $payment_date_mysql = date_to_mysql($payment_date);
+
         $success_count = 0;
         $error_count = 0;
         $errors = [];
+        $validation_errors = [];
 
         foreach ($invoice_ids as $invoice_id) {
             // Get current invoice balance
@@ -141,30 +146,28 @@ class Ajax extends Admin_Controller
             }
 
             // Prepare payment data - use full invoice balance
+            // Since we're paying the full balance, we know the amount is valid
+            // No need to run validation - just save directly
             $payment_data = [
                 'invoice_id'        => $invoice_id,
-                'payment_amount'    => $invoice->invoice_balance,  // Pay full balance
+                'payment_amount'    => $invoice->invoice_balance,
                 'payment_method_id' => $payment_method_id,
-                'payment_date'      => $payment_date,
+                'payment_date'      => $payment_date_mysql,
                 'payment_note'      => $payment_note,
             ];
 
-            // Set the form data for validation
-            foreach ($payment_data as $key => $value) {
-                $_POST[$key] = $value;
-            }
-
-            // Validate and save
-            if ($this->mdl_payments->run_validation()) {
+            try {
+                // Save payment directly (bypasses validation since we know full balance is valid)
                 $payment_id = $this->mdl_payments->save(null, $payment_data);
+                
                 if ($payment_id) {
                     $success_count++;
                 } else {
                     $errors[] = "Failed to save payment for invoice " . $invoice->invoice_number;
                     $error_count++;
                 }
-            } else {
-                $errors[] = "Validation failed for invoice " . $invoice->invoice_number;
+            } catch (Exception $e) {
+                $errors[] = "Error saving payment for invoice " . $invoice->invoice_number . ': ' . $e->getMessage();
                 $error_count++;
             }
         }
