@@ -1,6 +1,52 @@
 # Scratchpad
 
-## Current Task: Infinite Scroll for Invoices and Payments Pages
+## Current Task: Batch Payment Feature for Client Invoices
+[X] Add batch payment button to client invoice view
+[X] Create batch payment modal view
+[X] Add AJAX endpoint for batch payment modal
+[X] Add AJAX endpoint for processing batch payments
+[X] Add JavaScript for batch payment functionality
+[X] Add language translations
+
+### Implementation Details:
+**Batch Payment Feature:**
+- Added "Batch Payment" button to Client > Invoices view
+- Button appears when invoices are selected (alongside PDF/Bill.com buttons)
+- Opens a modal showing all selected invoices with their balances
+- Automatically pays the FULL balance of each selected invoice
+- Allows entering:
+  - Payment date
+  - Payment method
+  - Note (added to all payment records)
+- Displays total payment amount (sum of all invoice balances)
+- Creates individual payment records for each selected invoice
+- Automatically refreshes page after successful batch payment
+- Filters out already-paid invoices (zero balance)
+- Shows success/error counts and details
+
+### Files Created/Modified:
+1. `application/modules/payments/views/modal_add_batch_payment.php`:
+   - New modal view for batch payment entry
+   - Shows list of selected invoices with balances
+   - Form for payment details
+   - JavaScript to handle form submission via AJAX
+
+2. `application/modules/payments/controllers/Ajax.php`:
+   - Added `modal_add_batch_payment()` method to load modal
+   - Added `add_batch()` method to process batch payments
+   - Validates each invoice and amount
+   - Creates individual payment records
+   - Returns success/error counts
+
+3. `application/modules/clients/views/view.php`:
+   - Added batch payment button to header
+   - Updated toggleClientBatchButton() to show/hide payment button
+   - Added JavaScript handler to load batch payment modal
+
+4. `application/language/english/ip_lang.php`:
+   - Added translations for batch payment feature
+
+## Previous Task: Infinite Scroll for Invoices and Payments Pages
 [X] Create AJAX endpoint for loading more invoices
 [X] Update main invoices view to add infinite scroll UI
 [X] Add JavaScript for infinite scroll functionality

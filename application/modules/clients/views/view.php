@@ -600,6 +600,9 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
                                     <?php _trans('overdue'); ?>
                                 </button>
                             </div>
+                            <button type="button" class="btn btn-sm btn-warning" id="btn-batch-payment-client" style="display:none; margin-right: 10px;">
+                                <i class="fa fa-money"></i> <?php _trans('enter_payment'); ?>
+                            </button>
                             <button type="button" class="btn btn-sm btn-info" id="btn-batch-download-pdf-client" style="display:none; margin-right: 10px;">
                                 <i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?>
                             </button>
@@ -658,19 +661,39 @@ foreach (explode(' ', 'quote invoice payment') as $what) {
 </div>
 
 <script>
+// Function to update select all checkbox state (global scope for reuse)
+function updateSelectAllState() {
+    var total = $('.invoice-select').length;
+    var checked = $('.invoice-select:checked').length;
+    var $selectAll = $('#select-all-invoices');
+    
+    if (checked === 0) {
+        // None selected
+        $selectAll.prop('checked', false);
+        $selectAll.prop('indeterminate', false);
+    } else if (checked === total) {
+        // All selected
+        $selectAll.prop('checked', true);
+        $selectAll.prop('indeterminate', false);
+    } else {
+        // Some selected (partial)
+        $selectAll.prop('checked', false);
+        $selectAll.prop('indeterminate', true);
+    }
+}
+
 $(document).ready(function() {
     // Handle select all checkbox for client invoice tab (works regardless of Bill.com status)
     $('#select-all-invoices').on('change', function() {
-        $('.invoice-select').prop('checked', $(this).prop('checked'));
+        var isChecked = $(this).prop('checked');
+        $('.invoice-select').prop('checked', isChecked);
+        $(this).prop('indeterminate', false);
         toggleClientBatchButton();
     });
 
     // Handle individual checkbox changes for client invoice tab (works regardless of Bill.com status)
     $(document).on('change', '.invoice-select', function() {
-        // Update select all checkbox if all items are selected
-        var total = $('.invoice-select').length;
-        var checked = $('.invoice-select:checked').length;
-        $('#select-all-invoices').prop('checked', total === checked);
+        updateSelectAllState();
         toggleClientBatchButton();
     });
 
@@ -678,6 +701,8 @@ $(document).ready(function() {
     function toggleClientBatchButton() {
         var checked = $('.invoice-select:checked').length;
         if (checked > 0) {
+            $('#btn-batch-payment-client').show();
+            $('#btn-batch-payment-client').html('<i class="fa fa-money"></i> <?php _trans('enter_payment'); ?> (' + checked + ')');
 <?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
             $('#btn-batch-send-billcom-client').show();
             $('#btn-batch-send-billcom-client').html('<i class="fa fa-cloud-upload"></i> <?php _trans('billcom_send_batch'); ?> (' + checked + ')');
@@ -685,6 +710,7 @@ $(document).ready(function() {
             $('#btn-batch-download-pdf-client').show();
             $('#btn-batch-download-pdf-client').html('<i class="fa fa-file-pdf-o"></i> <?php _trans('download_selected_pdfs'); ?> (' + checked + ')');
         } else {
+            $('#btn-batch-payment-client').hide();
 <?php if (get_setting('billcom_enabled') == '1' && isset($client->client_billcom_enabled) && $client->client_billcom_enabled == 1) { ?>
             $('#btn-batch-send-billcom-client').hide();
 <?php } ?>
@@ -745,6 +771,24 @@ $(document).ready(function() {
         form.submit();
     });
 <?php } ?>
+
+    // Handle batch payment button click for client tab
+    $('#btn-batch-payment-client').on('click', function() {
+        var selectedIds = [];
+        $('.invoice-select:checked').each(function() {
+            selectedIds.push($(this).val());
+        });
+
+        if (selectedIds.length === 0) {
+            alert('<?php _trans('no_invoices_selected'); ?>');
+            return;
+        }
+
+        // Load the batch payment modal
+        $('#modal-placeholder').load("<?php echo site_url('payments/ajax/modal_add_batch_payment'); ?>", {
+            invoice_ids: selectedIds
+        });
+    });
 
     // Handle batch PDF download button click for client tab (works regardless of Bill.com status)
     $('#btn-batch-download-pdf-client').on('click', function() {
@@ -875,6 +919,9 @@ $(document).ready(function() {
                     // Update offset for next load
                     invoiceOffset += response.count;
                     
+                    // Update select all state since total count changed
+                    updateSelectAllState();
+                    
                     // Check if there are more records
                     hasMore = response.has_more;
                     
@@ -917,15 +964,18 @@ $(document).ready(function() {
         // Update current status
         currentStatus = newStatus;
         
-        // Reset pagination
+        // Reset pagination - start fresh
         invoiceOffset = 0;
         hasMore = true;
+        isLoading = false;
         
         // Clear current invoices
         $('#client-invoices table tbody').empty();
         
-        // Show loading
-        $('#invoice-loading').show();
+        // Update select all state since table is now empty
+        updateSelectAllState();
+        
+        // Hide end message and load more button
         $('#invoice-load-more').hide();
         $('#invoice-end').hide();
         
@@ -947,15 +997,18 @@ $(document).ready(function() {
             if (searchTerm !== inputValue) {
                 searchTerm = inputValue;
                 
-                // Reset pagination
+                // Reset pagination - start fresh
                 invoiceOffset = 0;
                 hasMore = true;
+                isLoading = false;
                 
                 // Clear current invoices
                 $('#client-invoices table tbody').empty();
                 
-                // Show loading
-                $('#invoice-loading').show();
+                // Update select all state since table is now empty
+                updateSelectAllState();
+                
+                // Hide end message and load more button
                 $('#invoice-load-more').hide();
                 $('#invoice-end').hide();
                 
@@ -972,15 +1025,18 @@ $(document).ready(function() {
         if (searchTerm !== '') {
             searchTerm = '';
             
-            // Reset pagination
+            // Reset pagination - start fresh
             invoiceOffset = 0;
             hasMore = true;
+            isLoading = false;
             
             // Clear current invoices
             $('#client-invoices table tbody').empty();
             
-            // Show loading
-            $('#invoice-loading').show();
+            // Update select all state since table is now empty
+            updateSelectAllState();
+            
+            // Hide end message and load more button
             $('#invoice-load-more').hide();
             $('#invoice-end').hide();
             

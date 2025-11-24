@@ -861,4 +861,10 @@ $lang = [
     'error_loading_invoices'       => 'Error loading invoices. Please try again.',
     'no_more_payments'             => 'No more payments to load',
     'error_loading_payments'       => 'Error loading payments. Please try again.',
+    'enter_batch_payment'          => 'Enter Batch Payment',
+    'batch_payment_info'           => 'Batch Payment',
+    'paying_full_amount_for'       => 'Paying full amount for',
+    'total_payment_amount'         => 'Total Payment Amount',
+    'note_will_be_added_to_all'    => 'This note will be added to all payment records',
+    'no_invoices_selected'         => 'No invoices selected',
 ];
