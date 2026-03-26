@@ -1,6 +1,10 @@
 # Scratchpad
 
-## Current Task: Batch Payment Feature for Client Invoices
+## Current Task: Fix Invoice Numerical Sorting (1000+ invoices)
+[X] Identified issue: invoice_number sorted as string, not numerically
+[X] Fixed default_order_by() in Mdl_invoices.php - added LENGTH() for natural numeric sorting
+
+## Previous Task: Batch Payment Feature for Client Invoices
 [X] Add batch payment button to client invoice view
 [X] Create batch payment modal view
 [X] Add AJAX endpoint for batch payment modal
@@ -162,4 +166,5 @@
 - For infinite scroll on main pages, hide pagination with display:none instead of removing it entirely (maintains compatibility)
 - AJAX-loaded invoice rows must include all functionality: checkboxes, options dropdown, Bill.com status indicators, etc.
 - Use $(document).on() event delegation for dynamically loaded content (checkboxes, payment forms, etc.)
+- When sorting string columns that contain numbers (like invoice_number), use LENGTH(col) DESC, col DESC to achieve natural numeric ordering — pure string DESC fails once values exceed consistent digit counts (e.g., "999" > "1000" in string sort)
 
