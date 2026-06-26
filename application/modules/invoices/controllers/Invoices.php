@@ -476,13 +476,20 @@ class Invoices extends Admin_Controller
                 $trailer_number
             );
 
-            // Send email with PDF attachment
+            // Get any additional uploaded files for this invoice
+            $this->load->model('upload/mdl_uploads');
+            $additional_attachments = $this->mdl_uploads->get_invoice_uploads($invoice_id);
+
+            // Send email with PDF attachment and any additional files
             $success = phpmail_send(
                 [$from_email, get_setting('default_invoice_email_from_name') ?: 'InvoicePlane'],
                 $client->client_billcom_email,
                 $subject,
                 $body,
-                $pdf_path
+                $pdf_path,
+                null,
+                null,
+                $additional_attachments
             );
 
             if ($success) {
@@ -638,13 +645,20 @@ class Invoices extends Admin_Controller
                     $trailer_number
                 );
 
-                // Send email with PDF attachment
+                // Get any additional uploaded files for this invoice
+                $this->load->model('upload/mdl_uploads');
+                $additional_attachments = $this->mdl_uploads->get_invoice_uploads($invoice_id);
+
+                // Send email with PDF attachment and any additional files
                 $success = phpmail_send(
                     [$from_email, get_setting('default_invoice_email_from_name') ?: 'InvoicePlane'],
                     $client->client_billcom_email,
                     $subject,
                     $body,
-                    $pdf_path
+                    $pdf_path,
+                    null,
+                    null,
+                    $additional_attachments
                 );
 
                 if ($success) {
