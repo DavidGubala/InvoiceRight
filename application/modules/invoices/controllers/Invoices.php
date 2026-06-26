@@ -482,7 +482,7 @@ class Invoices extends Admin_Controller
 
             // Send email with PDF attachment and any additional files
             $success = phpmail_send(
-                [$from_email, get_setting('default_invoice_email_from_name') ?: 'InvoicePlane'],
+                [$from_email, 'Ted G Trailer Repair'],
                 $client->client_billcom_email,
                 $subject,
                 $body,
@@ -651,7 +651,7 @@ class Invoices extends Admin_Controller
 
                 // Send email with PDF attachment and any additional files
                 $success = phpmail_send(
-                    [$from_email, get_setting('default_invoice_email_from_name') ?: 'InvoicePlane'],
+                    [$from_email, 'Ted G Trailer Repair'],
                     $client->client_billcom_email,
                     $subject,
                     $body,
