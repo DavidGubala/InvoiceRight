@@ -72,17 +72,28 @@ $einvoicingOpt = $req_einvoicing ? $einvoicingTip . trans('optional') . ')"' : '
                     <div class="panel-body">
 <?php if (get_setting('billcom_enabled') == '1') { ?>
                         <div class="form-group">
-                            <label for="client_billcom_customer_id">
-                                <?php _trans('client_billcom_customer_id'); ?>
-                            </label>
-                            <input type="text" class="form-control" 
-                                name="client_billcom_customer_id" 
-                                id="client_billcom_customer_id"
-                                value="<?php echo $this->mdl_clients->form_value('client_billcom_customer_id', true); ?>"
-                                placeholder="0cu...">
-                            <small class="text-muted"><?php _trans('client_billcom_customer_id_help'); ?></small>
-                        </div>
-<?php } ?>
+                                                    <label for="client_billcom_email">
+                                                        <?php _trans('client_billcom_email'); ?>
+                                                    </label>
+                                                    <input type="email" class="form-control" 
+                                                        name="client_billcom_email" 
+                                                        id="client_billcom_email"
+                                                        value="<?php echo $this->mdl_clients->form_value('client_billcom_email', true); ?>"
+                                                        placeholder="invoices@client-company.com">
+                                                    <small class="text-muted"><?php _trans('client_billcom_email_help'); ?></small>
+                                                </div>
+                                                <div class="form-group">
+                                                    <label for="client_billcom_customer_id">
+                                                        <?php _trans('client_billcom_customer_id'); ?>
+                                                    </label>
+                                                    <input type="text" class="form-control" 
+                                                        name="client_billcom_customer_id" 
+                                                        id="client_billcom_customer_id"
+                                                        value="<?php echo $this->mdl_clients->form_value('client_billcom_customer_id', true); ?>"
+                                                        placeholder="0cu...">
+                                                    <small class="text-muted"><?php _trans('client_billcom_customer_id_help'); ?></small>
+                                                </div>
+                        <?php } ?>
                         <div class="form-group">
                             <label for="client_name">
                                 <?php _trans('client_name'); ?>

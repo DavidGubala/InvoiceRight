@@ -368,228 +368,332 @@ class Invoices extends Admin_Controller
     }
 
     /**
-     * Send a single invoice to Bill.com
-     *
-     * @param int $invoice_id
-     */
-    public function send_to_billcom($invoice_id): void
-    {
-        log_message('info', 'User initiated Bill.com submission for invoice ' . $invoice_id);
+         * Send a single invoice PDF via email to the client's Bill.com address
+         *
+         * @param int $invoice_id
+         */
+        public function send_to_billcom($invoice_id): void
+        {
+            log_message('info', 'User initiated Bill.com email submission for invoice ' . $invoice_id);
         
-        $this->load->library('billcom');
+            // Check if mailer is configured
+            $this->load->helper('mailer');
+            if (!mailer_configured()) {
+                log_message('warning', 'Bill.com email failed: mailer not configured');
+                $this->session->set_flashdata('alert_error', trans('billcom_mailer_not_configured'));
+                redirect('invoices/view/' . $invoice_id);
+                return;
+            }
 
-        // Check if Bill.com is enabled
-        if (!$this->billcom->is_enabled()) {
-            log_message('warning', 'Bill.com submission failed: integration not enabled (invoice ' . $invoice_id . ')');
-            $this->session->set_flashdata('alert_error', trans('billcom_not_enabled'));
-            redirect('invoices/view/' . $invoice_id);
-            return;
-        }
+            // Check if Bill.com is enabled
+            if (get_setting('billcom_enabled') != '1') {
+                log_message('warning', 'Bill.com email failed: integration not enabled (invoice ' . $invoice_id . ')');
+                $this->session->set_flashdata('alert_error', trans('billcom_not_enabled'));
+                redirect('invoices/view/' . $invoice_id);
+                return;
+            }
 
-        // Load required models
-        $this->load->model([
-            'invoices/mdl_items',
-            'clients/mdl_clients',
-            'custom_fields/mdl_invoice_custom'
-        ]);
+            // Load required models
+            $this->load->model([
+                'invoices/mdl_items',
+                'clients/mdl_clients',
+            ]);
 
-        // Get invoice data
-        $invoice = $this->mdl_invoices->get_by_id($invoice_id);
-        if (!$invoice) {
-            log_message('error', 'Bill.com submission failed: invoice ' . $invoice_id . ' not found');
-            $this->session->set_flashdata('alert_error', trans('invoice_not_found'));
-            redirect('invoices/index');
-            return;
-        }
-
-        // Get client data
-        $client = $this->mdl_clients->get_by_id($invoice->client_id);
-        if (!$client) {
-            log_message('error', 'Bill.com submission failed: client ' . $invoice->client_id . ' not found for invoice ' . $invoice_id);
-            $this->session->set_flashdata('alert_error', trans('client_not_found'));
-            redirect('invoices/view/' . $invoice_id);
-            return;
-        }
-
-        // Check if Bill.com is enabled for this client
-        if ($client->client_billcom_enabled != 1) {
-            log_message('info', 'Bill.com submission skipped: client ' . $client->client_id . ' (' . $client->client_name . ') does not have Bill.com enabled');
-            $this->session->set_flashdata('alert_error', trans('billcom_client_disabled'));
-            redirect('invoices/view/' . $invoice_id);
-            return;
-        }
-
-        // Validate client has email or Bill.com customer ID
-        if (empty($client->client_email) && empty($client->client_billcom_customer_id)) {
-            log_message('error', 'Bill.com submission failed: client ' . $client->client_id . ' (' . $client->client_name . ') has no email and no Bill.com Customer ID');
-            $this->session->set_flashdata('alert_error', trans('billcom_client_no_email_or_id'));
-            redirect('invoices/view/' . $invoice_id);
-            return;
-        }
-
-        // Get invoice items
-        $items = $this->mdl_items->where('invoice_id', $invoice_id)->get()->result();
-        if (empty($items)) {
-            log_message('warning', 'Bill.com submission failed: invoice ' . $invoice_id . ' has no line items');
-            $this->session->set_flashdata('alert_error', trans('billcom_no_items'));
-            redirect('invoices/view/' . $invoice_id);
-            return;
-        }
-
-        // Get invoice custom fields
-        $custom_fields = $this->mdl_invoice_custom->by_id($invoice_id)->get()->result();
-
-        log_message('info', 'Submitting invoice ' . $invoice_id . ' (IP#' . $invoice->invoice_number . ') to Bill.com for client ' . $client->client_name);
-
-        // Send to Bill.com
-        $result = $this->billcom->createInvoice($invoice, $client, $items, $custom_fields);
-
-        if ($result['success']) {
-            // Generate invoice number if needed and mark as sent
-            $this->mdl_invoices->generate_invoice_number_if_applicable($invoice_id);
-            $this->mdl_invoices->mark_sent($invoice_id);
-            
-            // Update invoice with Bill.com ID
-            $this->mdl_invoices->mark_sent_to_billcom($invoice_id, $result['data']['id']);
-            log_message('info', 'Successfully submitted invoice ' . $invoice_id . ' to Bill.com (ID: ' . $result['data']['id'] . ')');
-            $this->session->set_flashdata('alert_success', trans('billcom_success') . ' (Bill.com ID: ' . $result['data']['id'] . ')');
-        } else {
-            log_message('error', 'Failed to submit invoice ' . $invoice_id . ' to Bill.com: ' . $result['error']);
-            $this->session->set_flashdata('alert_error', trans('billcom_error') . ': ' . $result['error']);
-        }
-
-        redirect('invoices/view/' . $invoice_id);
-    }
-
-    /**
-     * Send multiple invoices to Bill.com in batch
-     */
-    public function batch_send_to_billcom(): void
-    {
-        $this->load->library('billcom');
-
-        // Check if Bill.com is enabled
-        if (!$this->billcom->is_enabled()) {
-            log_message('warning', 'Batch Bill.com submission failed: integration not enabled');
-            $this->session->set_flashdata('alert_error', trans('billcom_not_enabled'));
-            redirect('invoices/index');
-            return;
-        }
-
-        // Get invoice IDs from POST
-        $invoice_ids = $this->input->post('invoice_ids');
-        if (empty($invoice_ids) || !is_array($invoice_ids)) {
-            log_message('warning', 'Batch Bill.com submission failed: no invoices selected');
-            $this->session->set_flashdata('alert_error', trans('billcom_no_invoices_selected'));
-            redirect('invoices/index');
-            return;
-        }
-
-        log_message('info', 'User initiated batch Bill.com submission for ' . count($invoice_ids) . ' invoice(s)');
-
-        // Load required models
-        $this->load->model([
-            'invoices/mdl_items',
-            'clients/mdl_clients',
-            'custom_fields/mdl_invoice_custom'
-        ]);
-
-        $success_count = 0;
-        $error_count = 0;
-        $errors = [];
-
-        foreach ($invoice_ids as $invoice_id) {
             // Get invoice data
             $invoice = $this->mdl_invoices->get_by_id($invoice_id);
             if (!$invoice) {
-                $error_count++;
-                $errors[] = "Invoice #$invoice_id not found";
-                continue;
+                log_message('error', 'Bill.com email failed: invoice ' . $invoice_id . ' not found');
+                $this->session->set_flashdata('alert_error', trans('invoice_not_found'));
+                redirect('invoices/index');
+                return;
             }
 
             // Get client data
             $client = $this->mdl_clients->get_by_id($invoice->client_id);
             if (!$client) {
-                $error_count++;
-                $errors[] = "Client not found for invoice #" . ($invoice->invoice_number ?: $invoice_id);
-                continue;
+                log_message('error', 'Bill.com email failed: client ' . $invoice->client_id . ' not found for invoice ' . $invoice_id);
+                $this->session->set_flashdata('alert_error', trans('client_not_found'));
+                redirect('invoices/view/' . $invoice_id);
+                return;
             }
 
             // Check if Bill.com is enabled for this client
             if ($client->client_billcom_enabled != 1) {
-                $error_count++;
-                $errors[] = "Invoice #" . ($invoice->invoice_number ?: $invoice_id) . ": " . trans('billcom_client_disabled');
-                continue;
+                log_message('info', 'Bill.com email skipped: client ' . $client->client_id . ' (' . $client->client_name . ') does not have Bill.com enabled');
+                $this->session->set_flashdata('alert_error', trans('billcom_client_disabled'));
+                redirect('invoices/view/' . $invoice_id);
+                return;
             }
 
-            // Validate client has email or Bill.com customer ID
-            if (empty($client->client_email) && empty($client->client_billcom_customer_id)) {
-                $error_count++;
-                $errors[] = "Invoice #" . ($invoice->invoice_number ?: $invoice_id) . ": " . trans('billcom_client_no_email_or_id');
-                continue;
+            // Validate client has a Bill.com email address
+            if (empty($client->client_billcom_email)) {
+                log_message('error', 'Bill.com email failed: client ' . $client->client_id . ' (' . $client->client_name . ') has no Bill.com email configured');
+                $this->session->set_flashdata('alert_error', trans('billcom_email_not_configured'));
+                redirect('invoices/view/' . $invoice_id);
+                return;
             }
 
             // Get invoice items
             $items = $this->mdl_items->where('invoice_id', $invoice_id)->get()->result();
             if (empty($items)) {
-                $error_count++;
-                $errors[] = "No items for invoice #" . ($invoice->invoice_number ?: $invoice_id);
-                continue;
+                log_message('warning', 'Bill.com email failed: invoice ' . $invoice_id . ' has no line items');
+                $this->session->set_flashdata('alert_error', trans('billcom_no_items'));
+                redirect('invoices/view/' . $invoice_id);
+                return;
             }
 
-            // Get invoice custom fields
-            $custom_fields = $this->mdl_invoice_custom->by_id($invoice_id)->get()->result();
+            log_message('info', 'Generating PDF and emailing invoice ' . $invoice_id . ' (IP#' . $invoice->invoice_number . ') to ' . $client->client_name . ' billcom address: ' . $client->client_billcom_email);
 
-            // Send to Bill.com
-            $result = $this->billcom->createInvoice($invoice, $client, $items, $custom_fields);
+            // Generate invoice PDF
+            $this->load->helper('pdf');
+            $pdf_path = generate_invoice_pdf($invoice_id, false);
 
-            if ($result['success']) {
+            if (!file_exists($pdf_path)) {
+                log_message('error', 'Bill.com email failed: could not generate PDF for invoice ' . $invoice_id);
+                $this->session->set_flashdata('alert_error', trans('billcom_error') . ': ' . trans('error_generating_pdf'));
+                redirect('invoices/view/' . $invoice_id);
+                return;
+            }
+
+            // Build email
+            $this->load->helper('mailer/phpmailer');
+        
+            $from_email = get_setting('smtp_mail_from');
+            if (empty($from_email)) {
+                $from_email = 'system@' . preg_replace("/^[\w]{2,6}:\/\/([\w\d\.\-]+).*$/", '$1', base_url());
+            }
+        
+            $invoice_number = $invoice->invoice_number ?: 'INV-' . $invoice_id;
+
+            // Get trailer number from custom fields
+            $trailer_number = $this->get_trailer_number($invoice_id);
+
+            $subject = sprintf(trans('billcom_email_subject'), $invoice_number);
+            $body = sprintf(trans('billcom_email_body'),
+                $invoice_number,
+                $client->client_name,
+                format_currency($invoice->invoice_total),
+                $trailer_number
+            );
+
+            // Send email with PDF attachment
+            $success = phpmail_send(
+                [$from_email, get_setting('default_invoice_email_from_name') ?: 'InvoicePlane'],
+                $client->client_billcom_email,
+                $subject,
+                $body,
+                $pdf_path
+            );
+
+            if ($success) {
                 // Generate invoice number if needed and mark as sent
                 $this->mdl_invoices->generate_invoice_number_if_applicable($invoice_id);
                 $this->mdl_invoices->mark_sent($invoice_id);
-                
-                // Update invoice with Bill.com ID
-                $this->mdl_invoices->mark_sent_to_billcom($invoice_id, $result['data']['id']);
-                $success_count++;
+            
+                // Mark as sent to Bill.com (store 'email' as the method identifier)
+                $this->mdl_invoices->mark_sent_to_billcom($invoice_id, 'email');
+                log_message('info', 'Successfully emailed invoice ' . $invoice_id . ' to Bill.com for client ' . $client->client_name . ' at ' . $client->client_billcom_email);
+                $this->session->set_flashdata('alert_success', trans('billcom_email_success'));
             } else {
-                $error_count++;
-                $errors[] = "Invoice #" . ($invoice->invoice_number ?: $invoice_id) . ": " . $result['error'];
+                log_message('error', 'Failed to email invoice ' . $invoice_id . ' to Bill.com for client ' . $client->client_name);
+                $this->session->set_flashdata('alert_error', trans('billcom_email_error'));
+            }
+
+            redirect('invoices/view/' . $invoice_id);
+        }
+
+    /**
+     * Get the trailer number for an invoice from custom fields
+     *
+     * @param int $invoice_id
+     * @return string Trailer number value or 'N/A'
+     */
+    private function get_trailer_number($invoice_id): string
+    {
+        $this->load->model('custom_fields/mdl_invoice_custom');
+        $this->load->model('custom_fields/mdl_custom_fields');
+
+        // Get all custom fields for this invoice
+        $custom_fields = $this->mdl_invoice_custom->by_id($invoice_id)->get()->result();
+
+        foreach ($custom_fields as $field) {
+            // Check if the field label contains "trailer" (case-insensitive)
+            if (stripos($field->custom_field_label, 'trailer') !== false) {
+                return $field->invoice_custom_fieldvalue ?: 'N/A';
             }
         }
 
-        // Log batch results
-        log_message('info', 'Batch Bill.com submission complete: ' . $success_count . ' succeeded, ' . $error_count . ' failed');
-        if ($error_count > 0) {
-            log_message('error', 'Batch Bill.com errors: ' . implode('; ', $errors));
-        }
-
-        // Set flash messages with mark_as_flash to ensure they persist through redirect
-        if ($success_count > 0) {
-            $success_message = trans('billcom_batch_success') . ': ' . $success_count . ' ' . trans('invoices');
-            $this->session->set_flashdata('alert_success', $success_message);
-            log_message('debug', 'Setting success flash message: ' . $success_message);
-        }
-
-        if ($error_count > 0) {
-            $error_message = trans('billcom_batch_errors') . ': ' . $error_count . '<br>' . implode('<br>', array_slice($errors, 0, 5));
-            if (count($errors) > 5) {
-                $error_message .= '<br>... ' . trans('and') . ' ' . (count($errors) - 5) . ' ' . trans('more');
-            }
-            $this->session->set_flashdata('alert_error', $error_message);
-            log_message('debug', 'Setting error flash message with ' . count($errors) . ' errors');
-        }
-
-        // Check for custom redirect URL (e.g., from client view)
-        $redirect_url = $this->input->post('redirect_url');
-        if (!empty($redirect_url)) {
-            log_message('debug', 'Batch send redirecting to: ' . $redirect_url);
-            redirect($redirect_url);
-        } else {
-            // Redirect to status/all to avoid double redirect (index redirects to status/all)
-            log_message('debug', 'Batch send redirecting to: invoices/status/all');
-            redirect('invoices/status/all');
-        }
+        return 'N/A';
     }
+
+    /**
+         * Send multiple invoice PDFs via email to each client's Bill.com address
+         */
+        public function batch_send_to_billcom(): void
+        {
+            // Check if mailer is configured
+            $this->load->helper('mailer');
+            if (!mailer_configured()) {
+                log_message('warning', 'Batch Bill.com email failed: mailer not configured');
+                $this->session->set_flashdata('alert_error', trans('billcom_mailer_not_configured'));
+                redirect('invoices/index');
+                return;
+            }
+
+            // Check if Bill.com is enabled
+            if (get_setting('billcom_enabled') != '1') {
+                log_message('warning', 'Batch Bill.com email failed: integration not enabled');
+                $this->session->set_flashdata('alert_error', trans('billcom_not_enabled'));
+                redirect('invoices/index');
+                return;
+            }
+
+            // Get invoice IDs from POST
+            $invoice_ids = $this->input->post('invoice_ids');
+            if (empty($invoice_ids) || !is_array($invoice_ids)) {
+                log_message('warning', 'Batch Bill.com email failed: no invoices selected');
+                $this->session->set_flashdata('alert_error', trans('billcom_no_invoices_selected'));
+                redirect('invoices/index');
+                return;
+            }
+
+            log_message('info', 'User initiated batch Bill.com email submission for ' . count($invoice_ids) . ' invoice(s)');
+
+            // Load required models and helpers
+            $this->load->model([
+                'invoices/mdl_items',
+                'clients/mdl_clients',
+            ]);
+            $this->load->helper(['pdf', 'mailer/phpmailer']);
+
+            // Get sender email
+            $from_email = get_setting('smtp_mail_from');
+            if (empty($from_email)) {
+                $from_email = 'system@' . preg_replace("/^[\w]{2,6}:\/\/([\w\d\.\-]+).*$/", '$1', base_url());
+            }
+
+            $success_count = 0;
+            $error_count = 0;
+            $errors = [];
+
+            foreach ($invoice_ids as $invoice_id) {
+                // Get invoice data
+                $invoice = $this->mdl_invoices->get_by_id($invoice_id);
+                if (!$invoice) {
+                    $error_count++;
+                    $errors[] = "Invoice #$invoice_id not found";
+                    continue;
+                }
+
+                // Get client data
+                $client = $this->mdl_clients->get_by_id($invoice->client_id);
+                if (!$client) {
+                    $error_count++;
+                    $errors[] = "Client not found for invoice #" . ($invoice->invoice_number ?: $invoice_id);
+                    continue;
+                }
+
+                // Check if Bill.com is enabled for this client
+                if ($client->client_billcom_enabled != 1) {
+                    $error_count++;
+                    $errors[] = "Invoice #" . ($invoice->invoice_number ?: $invoice_id) . ": " . trans('billcom_client_disabled');
+                    continue;
+                }
+
+                // Validate client has a Bill.com email address
+                if (empty($client->client_billcom_email)) {
+                    $error_count++;
+                    $errors[] = "Invoice #" . ($invoice->invoice_number ?: $invoice_id) . ": " . trans('billcom_email_not_configured');
+                    continue;
+                }
+
+                // Get invoice items
+                $items = $this->mdl_items->where('invoice_id', $invoice_id)->get()->result();
+                if (empty($items)) {
+                    $error_count++;
+                    $errors[] = "No items for invoice #" . ($invoice->invoice_number ?: $invoice_id);
+                    continue;
+                }
+
+                // Generate invoice PDF
+                $pdf_path = generate_invoice_pdf($invoice_id, false);
+
+                if (!file_exists($pdf_path)) {
+                    $error_count++;
+                    $errors[] = "Invoice #" . ($invoice->invoice_number ?: $invoice_id) . ": PDF generation failed";
+                    continue;
+                }
+
+                // Build email
+                $invoice_number = $invoice->invoice_number ?: 'INV-' . $invoice_id;
+
+                // Get trailer number from custom fields
+                $trailer_number = $this->get_trailer_number($invoice_id);
+
+                $subject = sprintf(trans('billcom_email_subject'), $invoice_number);
+                $body = sprintf(trans('billcom_email_body'),
+                    $invoice_number,
+                    $client->client_name,
+                    format_currency($invoice->invoice_total),
+                    $trailer_number
+                );
+
+                // Send email with PDF attachment
+                $success = phpmail_send(
+                    [$from_email, get_setting('default_invoice_email_from_name') ?: 'InvoicePlane'],
+                    $client->client_billcom_email,
+                    $subject,
+                    $body,
+                    $pdf_path
+                );
+
+                if ($success) {
+                    // Generate invoice number if needed and mark as sent
+                    $this->mdl_invoices->generate_invoice_number_if_applicable($invoice_id);
+                    $this->mdl_invoices->mark_sent($invoice_id);
+                
+                    // Mark as sent to Bill.com (store 'email' as the method identifier)
+                    $this->mdl_invoices->mark_sent_to_billcom($invoice_id, 'email');
+                    $success_count++;
+                } else {
+                    $error_count++;
+                    $errors[] = "Invoice #" . ($invoice->invoice_number ?: $invoice_id) . ": " . trans('billcom_email_error');
+                }
+            }
+
+            // Log batch results
+            log_message('info', 'Batch Bill.com email complete: ' . $success_count . ' succeeded, ' . $error_count . ' failed');
+            if ($error_count > 0) {
+                log_message('error', 'Batch Bill.com email errors: ' . implode('; ', $errors));
+            }
+
+            // Set flash messages
+            if ($success_count > 0) {
+                $success_message = trans('billcom_batch_success') . ': ' . $success_count . ' ' . trans('invoices');
+                $this->session->set_flashdata('alert_success', $success_message);
+                log_message('debug', 'Setting success flash message: ' . $success_message);
+            }
+
+            if ($error_count > 0) {
+                $error_message = trans('billcom_batch_errors') . ': ' . $error_count . '<br>' . implode('<br>', array_slice($errors, 0, 5));
+                if (count($errors) > 5) {
+                    $error_message .= '<br>... ' . trans('and') . ' ' . (count($errors) - 5) . ' ' . trans('more');
+                }
+                $this->session->set_flashdata('alert_error', $error_message);
+                log_message('debug', 'Setting error flash message with ' . count($errors) . ' errors');
+            }
+
+            // Check for custom redirect URL (e.g., from client view)
+            $redirect_url = $this->input->post('redirect_url');
+            if (!empty($redirect_url)) {
+                log_message('debug', 'Batch send redirecting to: ' . $redirect_url);
+                redirect($redirect_url);
+            } else {
+                // Redirect to status/all to avoid double redirect (index redirects to status/all)
+                log_message('debug', 'Batch send redirecting to: invoices/status/all');
+                redirect('invoices/status/all');
+            }
+        }
 
     /**
      * Batch download PDFs for multiple invoices

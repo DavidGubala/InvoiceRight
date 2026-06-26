@@ -1,6 +1,16 @@
 # Scratchpad
 
-## Current Task: Fix Invoice Numerical Sorting (1000+ invoices)
+## Current Task: Bill.com Email PDF Integration
+[X] Added client_billcom_email column to ip_clients table
+[X] Added migration SQL (041_billcom_email.sql)
+[X] Added billcom email field to client form view
+[X] Rewrote send_to_billcom() to generate PDF and email it
+[X] Rewrote batch_send_to_billcom() to email PDFs in batch
+[X] Updated Bill.com settings page for email workflow
+[X] Added language strings (billcom_email_subject, etc.)
+[X] Updated help text for legacy API fields
+
+## Previous Task: Fix Invoice Numerical Sorting (1000+ invoices)
 [X] Identified issue: invoice_number sorted as string, not numerically
 [X] Fixed default_order_by() in Mdl_invoices.php - added LENGTH() for natural numeric sorting
 

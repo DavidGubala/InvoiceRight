@@ -56,6 +56,10 @@ class Mdl_Clients extends Response_Model
             'client_billcom_enabled' => [
                 'field' => 'client_billcom_enabled',
             ],
+            'client_billcom_email' => [
+                'field' => 'client_billcom_email',
+                'rules' => 'trim|valid_email',
+            ],
             'client_billcom_customer_id' => [
                 'field' => 'client_billcom_customer_id',
             ],
